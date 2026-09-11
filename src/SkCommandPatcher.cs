@@ -333,7 +333,9 @@ namespace SkToolbox
             }
             try
             {
-                PlayerProfile.s_bypassCheatChecks = true;
+                // Valheim build 25253764 (2026-09-11) turned PlayerProfile.s_bypassCheatChecks from a writable
+                // public field into a getter-only property, so it can no longer be assigned. The getter is patched
+                // instead, in PatchBypassCheatChecks below, which has the same effect everywhere the game reads it.
 
                 // m_usedCheats is saved in the character file and is the only permanent, character-scoped source of
                 // "cheated". Clear it once per session so the character is not left flagged when playing unmodded.
@@ -354,6 +356,21 @@ namespace SkToolbox
             catch (Exception ex)
             {
                 SkUtilities.Logz(new string[] { "ACHIEVEMENTS", "ERROR" }, new string[] { ex.Message }, UnityEngine.LogType.Error);
+            }
+        }
+
+        // Valheim build 25253764 made s_bypassCheatChecks a read-only property. Every cheat check in the game
+        // reads it, so patching the getter restores what assigning the old field used to do: spawned items, pieces
+        // and world objects stop being stamped as cheated.
+        [HarmonyPatch(typeof(PlayerProfile), nameof(PlayerProfile.s_bypassCheatChecks), MethodType.Getter)]
+        private static class PatchBypassCheatChecks
+        {
+            private static void Postfix(ref bool __result)
+            {
+                if (KeepAchievementsEnabled)
+                {
+                    __result = true;
+                }
             }
         }
 
