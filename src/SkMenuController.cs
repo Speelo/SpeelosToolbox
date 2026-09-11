@@ -1,0 +1,892 @@
+using SkToolbox.Configuration;
+using SkToolbox.Utility;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using static SkToolbox.Utility.SkUtilities;
+
+namespace SkToolbox
+{
+    /// <summary>
+    /// Speelo's Menu: the click-driven on-screen menu (IMGUI). A configurable key (default F6) toggles it.
+    /// Categories (modules) sit on the left, the current item list on the right with a submenu stack,
+    /// a search box for long lists, and a hover tip at the bottom. While it is open, the Harmony patches in
+    /// SkCommandPatcher free the mouse cursor and pause player input.
+    /// Public surface kept for the modules: RequestSubMenu(...), UpdateMenuOptions(...), CloseMenu(), logResponse.
+    /// </summary>
+    public class SkMenuController : MonoBehaviour
+    {
+        internal static System.Version SkMenuControllerVersion = new System.Version(2, 0, 0); // 09/2026 clickable rewrite
+        internal static Status SkMenuControllerStatus = Status.Initialized;
+
+        internal static SkMenuController Instance { get; private set; }
+
+        /// <summary>True while the menu window is on screen. Read every frame by the mouse/input patches in SkCommandPatcher.</summary>
+        public static bool IsOpen => Instance != null && Instance.menuOpen;
+
+        private readonly string appName = SkBepInExLoader.DISPLAYNAME;
+
+        private bool initialCheck = true;
+        internal bool logResponse = false;
+        private bool menuOpen = false;
+
+        public List<SkModules.SkBaseModule> menuOptions;
+        public SkModuleController SkModuleController;
+
+        // ---- navigation state ----
+        private int selectedModule = -1;
+        private readonly List<MenuFrame> frames = new List<MenuFrame>();
+        private Action pendingAction; // structural changes are deferred to the end of the IMGUI pass
+        private SkMenuSlider pendingSlider; // attached to the next frame RequestSubMenu pushes
+        private string hoverTip = "";
+        private const int FilterThreshold = 12; // lists longer than this get a search box
+        private const float GridCell = 54f;
+        private const float GridPad = 4f;
+
+        private class MenuFrame
+        {
+            public string Title;
+            public List<SkMenuItem> Items;
+            public Vector2 Scroll;
+            public string Filter = "";
+            public List<SkMenuSlider> Sliders;
+            public List<SkGridItem> Grid;          // when set, this level draws as an icon grid
+            public List<SkGridItem> GridFiltered;  // cached result of Filter, rebuilt only when Filter changes
+            public string GridFilterKey;
+            public bool ShowFilter = true;         // small grids do not need a search box
+        }
+
+        /// <summary>One cell of an icon grid, e.g. an item in the Give tab or an action in the Player tab.</summary>
+        public class SkGridItem
+        {
+            public string Name;          // prefab name, passed to OnClick
+            public string Display;       // localized label used for search and the tooltip
+            public string Tip;
+            public Sprite Icon;
+            public Action<string> OnClick;
+
+            /// <summary>Optional live predicate. When it returns true the cell is outlined as "on".
+            /// Evaluated every frame, so a toggle lights up without rebuilding the grid.</summary>
+            public Func<bool> IsOn;
+        }
+
+        /// <summary>A numeric slider drawn under the search box of a menu level, e.g. the Give Item quantity.</summary>
+        public class SkMenuSlider
+        {
+            public string Label = "Value";
+            public int Min = 1;
+            public int Max = 100;
+            public Func<int> Get;
+            public Action<int> Set;
+        }
+
+        // ---- window / styles ----
+        private const int WindowId = 49000;
+        private Rect windowRect = new Rect(24f, 80f, 640f, 560f);
+        private bool windowPlaced = false;
+        private bool stylesReady = false;
+        private float stylesAlpha = -1f;
+        private GUIStyle styleWindow, styleItem, styleHeader, styleTip, styleSmall, styleBack, styleFilter;
+        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell;
+        private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite;
+
+        private static float ConfiguredOpacity =>
+            SkConfigEntry.OMenuOpacity == null ? 0.96f : Mathf.Clamp(SkConfigEntry.OMenuOpacity.Value, 0.25f, 1f);
+
+        /// <summary>Speelo's Menu: Unity's built-in IMGUI skin is largely see-through, which made the menu hard to
+        /// read over bright terrain. Every surface gets an explicit solid texture instead.</summary>
+        private static Texture2D MakeTex(Color color)
+        {
+            Texture2D tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.SetPixel(0, 0, color);
+            tex.Apply();
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.filterMode = FilterMode.Point;
+            tex.hideFlags = HideFlags.HideAndDontSave; // not tied to a scene, never serialized
+            return tex;
+        }
+
+        // ---- toggle key ----
+        private KeyCode toggleKey = KeyCode.F6;
+        internal KeyCode ToggleKey => toggleKey;
+
+        // ZInput maps unknown KeyCodes to Key.None and Unity.InputSystem's Keyboard[Key.None] throws, so a bad config
+        // binding is logged once and ignored instead of throwing every frame.
+        private static readonly HashSet<KeyCode> s_unmappedKeys = new HashSet<KeyCode>();
+        private static bool KeyDown(KeyCode key)
+        {
+            if (s_unmappedKeys.Contains(key)) return false;
+            // Speelo's Menu: bypass this mod's own input block (SkCommandPatcher.PatchMenuKeyDown) so the menu can
+            // always be closed again, even though every other key is swallowed while it is open.
+            SkCommandPatcher.BypassInputBlock = true;
+            try { return ZInput.GetKeyDown(key, false); }
+            catch (ArgumentOutOfRangeException)
+            {
+                s_unmappedKeys.Add(key);
+                SkUtilities.Logz(new string[] { "CONTROLLER", "WARN" }, new string[] { "KeyCode " + key + " has no Input System mapping in ZInput; bind ignored." });
+                return false;
+            }
+            finally { SkCommandPatcher.BypassInputBlock = false; }
+        }
+
+        void Awake()
+        {
+            Instance = this;
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+                ReleaseTextures();
+                stylesReady = false;
+            }
+        }
+
+        void Start()
+        {
+            SkMenuControllerStatus = Status.Loading;
+            SkUtilities.Logz(new string[] { "CONTROLLER", "NOTIFY" }, new string[] { "LOADING...", "WAITING FOR TOOLBOX." });
+            SkModuleController = gameObject.AddComponent<SkModuleController>(); // Load our module controller
+            ApplyToggleKey();
+        }
+
+        /// <summary>Reads [4 - OnScreenMenu] MenuToggleKey (a UnityEngine.KeyCode name). Falls back to F6.</summary>
+        internal void ApplyToggleKey()
+        {
+            string s = SkConfigEntry.OMenuToggleKey?.Value;
+            if (!string.IsNullOrWhiteSpace(s)
+                && Enum.TryParse<KeyCode>(s.Trim(), true, out KeyCode k)
+                && Enum.IsDefined(typeof(KeyCode), k)
+                && k != KeyCode.None)
+            {
+                toggleKey = k;
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(s))
+            {
+                SkUtilities.Logz(new string[] { "CONTROLLER", "CONFIG" }, new string[] { "Invalid MenuToggleKey '" + s + "' in config, using F6" }, LogType.Warning);
+            }
+            toggleKey = KeyCode.F6;
+        }
+
+        void Update()
+        {
+            if (initialCheck) // It takes a frame to load the components. Attempt to load menu options in second frame.
+            {
+                if (menuOptions == null || menuOptions.Count == 0)
+                {
+                    UpdateMenuOptions(SkModuleController.GetOptions());
+                }
+                else
+                {
+                    SkMenuControllerStatus = Status.Ready;
+                    if (SkModuleController.SkMainStatus == Status.Ready)
+                    {
+                        initialCheck = false;
+                        SkUtilities.Logz(new string[] { "CONTROLLER", "NOTIFY" }, new string[] { "READY. Press " + toggleKey + " to open the menu." });
+                    }
+                }
+            }
+
+            // Don't steal the toggle key while a vanilla text field owns the keyboard.
+            if (global::Console.IsVisible()
+                || (Chat.instance != null && Chat.instance.HasFocus())
+                || TextInput.IsVisible()
+                || Minimap.InTextInput())
+            {
+                return;
+            }
+
+            if (KeyDown(toggleKey))
+            {
+                if (menuOpen) CloseMenu(); else OpenMenu();
+            }
+            // Speelo's Menu: Escape closes this menu instead of stacking the vanilla pause menu on top of it.
+            else if (menuOpen && KeyDown(KeyCode.Escape))
+            {
+                CloseMenu();
+            }
+        }
+
+        public void OpenMenu()
+        {
+            if (menuOptions == null || menuOptions.Count == 0) return;
+            // Speelo's Menu: the cursor/input patches live in SkCommandPatcher, which is normally applied by
+            // SkCommandProcessor.Announce(). Applying here too (idempotent) guarantees they exist before the first
+            // frame the menu is interactive, otherwise the cursor would stay locked to the camera.
+            SkCommandPatcher.InitPatch();
+            menuOpen = true;
+            if (selectedModule < 0 || selectedModule >= menuOptions.Count || frames.Count == 0)
+            {
+                SelectModule(0);
+            }
+            else
+            {
+                RefreshRootFrame();
+            }
+        }
+
+        public void CloseMenu()
+        {
+            menuOpen = false;
+        }
+
+        // ------------------------------------------------------------------ navigation
+
+        private void SelectModule(int index)
+        {
+            if (menuOptions == null || index < 0 || index >= menuOptions.Count) return;
+            selectedModule = index;
+            frames.Clear();
+            SkModules.SkBaseModule module = menuOptions[index];
+            // The CallerEntry action rebuilds the module's menu where needed and calls RequestSubMenu, which pushes the root frame.
+            try
+            {
+                module.CallerEntry?.ItemClass?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                SkUtilities.Logz(new string[] { "CONTROLLER", "ERROR" }, new string[] { ex.Message });
+            }
+            if (frames.Count == 0)
+            {
+                frames.Add(new MenuFrame { Title = ModuleTitle(module), Items = module.FlushMenu() ?? new List<SkMenuItem>() });
+            }
+            else
+            {
+                frames[0].Title = ModuleTitle(module);
+            }
+        }
+
+        /// <summary>Re-reads the selected module's current item list into the root frame so toggle labels ([ON]/[OFF], radius numbers) stay current.</summary>
+        private void RefreshRootFrame()
+        {
+            if (frames.Count == 0 || selectedModule < 0 || menuOptions == null || selectedModule >= menuOptions.Count) return;
+            List<SkMenuItem> items = menuOptions[selectedModule].FlushMenu();
+            if (items != null && items.Count > 0) frames[0].Items = items;
+        }
+
+        private void PopFrame()
+        {
+            if (frames.Count > 1) frames.RemoveAt(frames.Count - 1);
+            if (frames.Count == 1) RefreshRootFrame();
+        }
+
+        private void InvokeItem(SkMenuItem item)
+        {
+            if (item == null) return;
+            bool opensSubmenu = item.ItemText != null && item.ItemText.Contains("►");
+            int depthBefore = frames.Count;
+
+            // Speelo's Menu: mirror whatever the action prints to the on-screen message area, because the console it
+            // normally prints to is closed while this menu is up.
+            SkCommandProcessor.MenuFeedbackActive = true;
+            SkCommandProcessor.MenuFeedbackShown = false;
+            try
+            {
+                if (item.ItemClass != null)
+                {
+                    item.ItemClass.Invoke();
+                }
+                else if (item.ItemClassStr != null)
+                {
+                    item.ItemClassStr.Invoke(item.ItemText); // upstream contract: the raw item text is the argument (prefab name, number...)
+                }
+            }
+            catch (Exception ex)
+            {
+                SkUtilities.Logz(new string[] { "CONTROLLER", "ERROR" }, new string[] { "Error running menu item '" + item.ItemText + "': " + ex.Message }, LogType.Error);
+                SkCommandProcessor.Notify("That failed: " + ex.Message);
+            }
+            finally
+            {
+                SkCommandProcessor.MenuFeedbackActive = false;
+            }
+
+            if (frames.Count == 1) RefreshRootFrame();
+
+            // Nothing printed and no submenu appeared: acknowledge the click with the item's own (refreshed) label,
+            // so silent toggles like Godmode still show their new state.
+            if (!SkCommandProcessor.MenuFeedbackShown && !opensSubmenu && frames.Count == depthBefore)
+            {
+                SkCommandProcessor.Notify(CurrentLabelFor(item));
+            }
+        }
+
+        // ------------------------------------------------------------------ layout sections
+
+        /// <summary>Close box in the title bar's top-right corner. Absolute rect so it sits in the title strip.</summary>
+        private void DrawCloseButton()
+        {
+            if (GUI.Button(new Rect(windowRect.width - 30f, 5f, 24f, 21f), "X", styleClose))
+            {
+                pendingAction = CloseMenu;
+            }
+        }
+
+        /// <summary>Module tabs across the top, sharing the row evenly.</summary>
+        private void DrawTabs()
+        {
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < menuOptions.Count; i++)
+            {
+                SkModules.SkBaseModule m = menuOptions[i];
+                if (m == null) continue;
+                bool on = i == selectedModule;
+                if (GUILayout.Button(new GUIContent(ModuleTitle(m), m.CallerEntry?.ItemTip ?? ""),
+                                     on ? styleTabOn : styleTab, GUILayout.ExpandWidth(true)) && !on)
+                {
+                    int captured = i;
+                    pendingAction = () => SelectModule(captured);
+                }
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8f);
+        }
+
+        /// <summary>Back button plus the current level's title. Hidden at the top level of a tab.</summary>
+        private void DrawFrameHeader()
+        {
+            if (frames.Count <= 1) return;
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("< Back", styleBack, GUILayout.Width(80f)))
+            {
+                pendingAction = PopFrame;
+            }
+            GUILayout.Space(8f);
+            GUILayout.Label(frames[frames.Count - 1].Title, styleHeader);
+            GUILayout.EndHorizontal();
+        }
+
+        private bool CurrentFrameIsFilterable()
+        {
+            if (frames.Count == 0) return false;
+            MenuFrame frame = frames[frames.Count - 1];
+            if (frame.Grid != null) return frame.ShowFilter && frame.Grid.Count > FilterThreshold;
+            return frame.Items != null && frame.Items.Count > FilterThreshold;
+        }
+
+        /// <summary>Search box, shown only for long lists.</summary>
+        private void DrawFilterRow()
+        {
+            if (!CurrentFrameIsFilterable()) return;
+            MenuFrame frame = frames[frames.Count - 1];
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Search", styleSmall, GUILayout.Width(52f));
+            frame.Filter = GUILayout.TextField(frame.Filter ?? "", styleFilter);
+            if (GUILayout.Button("x", styleBack, GUILayout.Width(28f))) frame.Filter = "";
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>Numeric sliders for this level (Give quantity, terrain radius and height), under the search box.</summary>
+        private void DrawSliderRow()
+        {
+            if (frames.Count == 0) return;
+            List<SkMenuSlider> sliders = frames[frames.Count - 1].Sliders;
+            if (sliders == null) return;
+
+            foreach (SkMenuSlider sl in sliders)
+            {
+                if (sl == null || sl.Get == null || sl.Set == null) continue;
+
+                int current = Mathf.Clamp(sl.Get(), sl.Min, sl.Max);
+                int updated = current;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(sl.Label + ": " + current, styleSmall, GUILayout.Width(110f));
+                if (GUILayout.Button("-", styleBack, GUILayout.Width(28f))) updated = current - 1;
+                float raw = GUILayout.HorizontalSlider(current, sl.Min, sl.Max, GUILayout.MinWidth(120f));
+                int rounded = Mathf.RoundToInt(raw);
+                if (rounded != current) updated = rounded;
+                if (GUILayout.Button("+", styleBack, GUILayout.Width(28f))) updated = current + 1;
+                GUILayout.EndHorizontal();
+
+                updated = Mathf.Clamp(updated, sl.Min, sl.Max);
+                if (updated != current) sl.Set(updated);
+            }
+        }
+
+        /// <summary>The scrolling list of the current level, honouring the search box.</summary>
+        private void DrawItemList()
+        {
+            if (frames.Count == 0)
+            {
+                GUILayout.FlexibleSpace();
+                GUILayout.Label("Pick a tab above.", styleTip);
+                GUILayout.FlexibleSpace();
+                return;
+            }
+
+            MenuFrame frame = frames[frames.Count - 1];
+            if (frame.Grid != null)
+            {
+                DrawGrid(frame);
+                return;
+            }
+
+            frame.Scroll = GUILayout.BeginScrollView(frame.Scroll, false, true);
+            string filter = CurrentFrameIsFilterable() ? (frame.Filter ?? "").Trim() : "";
+            int shown = 0;
+            if (frame.Items != null)
+            {
+                for (int i = 0; i < frame.Items.Count; i++)
+                {
+                    SkMenuItem item = frame.Items[i];
+                    if (item == null || string.IsNullOrEmpty(item.ItemText)) continue;
+                    if (filter.Length > 0 && item.ItemText.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    shown++;
+                    // An icon sits in the row's left gutter, so indent the label to make room for it.
+                    string label = Display(item.ItemText);
+                    if (item.Icon != null) label = "        " + label;
+                    if (GUILayout.Button(new GUIContent(label, item.ItemTip ?? ""), styleItem))
+                    {
+                        SkMenuItem captured = item;
+                        pendingAction = () => InvokeItem(captured);
+                    }
+                    if (item.Icon != null && Event.current.type == EventType.Repaint)
+                    {
+                        Rect row = GUILayoutUtility.GetLastRect();
+                        DrawSprite(new Rect(row.x + 3f, row.y, row.height, row.height), item.Icon, 2f);
+                    }
+                }
+            }
+            if (shown == 0) GUILayout.Label("No matches.", styleTip);
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// Icon grid. Only the rows inside the viewport are drawn: the Give tab holds hundreds of items and
+        /// drawing every cell each frame would cost far more than the handful actually on screen.
+        /// </summary>
+        private void DrawGrid(MenuFrame frame)
+        {
+            string filter = (frame.Filter ?? "").Trim();
+            if (frame.GridFiltered == null || frame.GridFilterKey != filter)
+            {
+                frame.GridFilterKey = filter;
+                if (filter.Length == 0)
+                {
+                    frame.GridFiltered = frame.Grid;
+                }
+                else
+                {
+                    List<SkGridItem> matches = new List<SkGridItem>();
+                    foreach (SkGridItem candidate in frame.Grid)
+                    {
+                        if (candidate == null) continue;
+                        if ((candidate.Display != null && candidate.Display.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                            || (candidate.Name != null && candidate.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+                        {
+                            matches.Add(candidate);
+                        }
+                    }
+                    frame.GridFiltered = matches;
+                }
+            }
+
+            List<SkGridItem> shown = frame.GridFiltered;
+            float available = Mathf.Max(80f, windowRect.width - 42f); // window padding + scrollbar
+            float step = GridCell + GridPad;
+            int columns = Mathf.Max(1, Mathf.FloorToInt(available / step));
+            int rows = Mathf.CeilToInt(shown.Count / (float)columns);
+
+            frame.Scroll = GUILayout.BeginScrollView(frame.Scroll, false, true);
+
+            if (shown.Count == 0)
+            {
+                GUILayout.Label("No matches.", styleTip);
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            float viewHeight = Mathf.Max(120f, windowRect.height - 240f);
+            int firstRow = Mathf.Max(0, Mathf.FloorToInt(frame.Scroll.y / step) - 1);
+            int lastRow = Mathf.Min(rows - 1, Mathf.CeilToInt((frame.Scroll.y + viewHeight) / step) + 1);
+
+            if (firstRow > 0) GUILayout.Space(firstRow * step);
+
+            for (int row = firstRow; row <= lastRow; row++)
+            {
+                GUILayout.BeginHorizontal();
+                for (int column = 0; column < columns; column++)
+                {
+                    int index = row * columns + column;
+                    if (index >= shown.Count)
+                    {
+                        GUILayout.Space(step);
+                        continue;
+                    }
+                    SkGridItem cell = shown[index];
+                    string caption = cell.Icon == null ? ShortLabel(cell.Display ?? cell.Name) : "";
+                    if (GUILayout.Button(new GUIContent(caption, cell.Tip ?? cell.Display ?? cell.Name),
+                                         styleGridCell, GUILayout.Width(GridCell), GUILayout.Height(GridCell)))
+                    {
+                        SkGridItem captured = cell;
+                        pendingAction = () => InvokeItem(new SkMenuItem(captured.Name, captured.OnClick, captured.Tip));
+                    }
+                    if (Event.current.type == EventType.Repaint)
+                    {
+                        Rect cellRect = GUILayoutUtility.GetLastRect();
+                        if (cell.Icon != null)
+                        {
+                            DrawSprite(cellRect, cell.Icon);
+                        }
+                        // A toggle that is currently on gets a bright border, so state is readable at a glance.
+                        if (cell.IsOn != null && cell.IsOn())
+                        {
+                            DrawOutline(cellRect, OnColor, 2f);
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            if (lastRow < rows - 1) GUILayout.Space((rows - 1 - lastRow) * step);
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Draws a sprite inside a rect, honouring its atlas rect so packed sprites are not smeared.</summary>
+        private static void DrawSprite(Rect area, Sprite sprite, float pad = 5f)
+        {
+            if (sprite == null || sprite.texture == null || area.width <= 0f) return;
+            Rect source = sprite.textureRect;
+            Rect coords = new Rect(source.x / sprite.texture.width,
+                                   source.y / sprite.texture.height,
+                                   source.width / sprite.texture.width,
+                                   source.height / sprite.texture.height);
+            Rect inner = new Rect(area.x + pad, area.y + pad, area.width - pad * 2f, area.height - pad * 2f);
+            GUI.DrawTextureWithTexCoords(inner, sprite.texture, coords, true);
+        }
+
+        private static readonly Color OnColor = new Color(0.48f, 0.95f, 0.48f);
+
+        /// <summary>Draws a hollow rectangle by stretching the shared white pixel along each edge.</summary>
+        private static void DrawOutline(Rect area, Color color, float thickness)
+        {
+            if (texWhite == null) return;
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(new Rect(area.x, area.y, area.width, thickness), texWhite);
+            GUI.DrawTexture(new Rect(area.x, area.yMax - thickness, area.width, thickness), texWhite);
+            GUI.DrawTexture(new Rect(area.x, area.y, thickness, area.height), texWhite);
+            GUI.DrawTexture(new Rect(area.xMax - thickness, area.y, thickness, area.height), texWhite);
+            GUI.color = previous;
+        }
+
+        private static string ShortLabel(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "?";
+            return text.Length <= 7 ? text : text.Substring(0, 7);
+        }
+
+        /// <summary>Hover tip on the left, toggle-key reminder on the right.</summary>
+        private void DrawFooter()
+        {
+            if (Event.current.type == EventType.Repaint) hoverTip = GUI.tooltip ?? "";
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(string.IsNullOrEmpty(hoverTip) ? " " : hoverTip, styleTip, GUILayout.Height(34f));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(toggleKey + " opens / closes", styleSmall, GUILayout.Height(34f));
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>Finds the item's current text after a refresh, so a toggle reports its new [ON]/[OFF] state.</summary>
+        private string CurrentLabelFor(SkMenuItem item)
+        {
+            string wanted = ToggleFree(item.ItemText);
+            if (frames.Count > 0 && frames[frames.Count - 1].Items != null)
+            {
+                foreach (SkMenuItem candidate in frames[frames.Count - 1].Items)
+                {
+                    if (candidate != null && ToggleFree(candidate.ItemText) == wanted)
+                    {
+                        return CleanText(candidate.ItemText);
+                    }
+                }
+            }
+            return CleanText(item.ItemText);
+        }
+
+        /// <summary>
+        /// Called by modules (SkBaseModule.RequestMenu) to show a list. Pushes a new level, unless the list is the same
+        /// one refreshed (same texts ignoring [ON]/[OFF]), in which case it is replaced in place.
+        /// refreshTime / subWidth are accepted for source compatibility and ignored.
+        /// </summary>
+        /// <summary>Pushes a level that renders as an icon grid instead of a list.</summary>
+        public void RequestGridMenu(List<SkGridItem> grid, SkMenuSlider slider = null, string title = "Items", bool showFilter = true)
+        {
+            RequestGridMenu(grid, slider == null ? null : new List<SkMenuSlider> { slider }, title, showFilter);
+        }
+
+        /// <summary>Grid level with any number of sliders stacked above it.</summary>
+        public void RequestGridMenu(List<SkGridItem> grid, List<SkMenuSlider> sliders, string title = "Items", bool showFilter = true)
+        {
+            if (grid == null || grid.Count == 0) return;
+            frames.Add(new MenuFrame { Title = title, Items = null, Grid = grid, Sliders = sliders, ShowFilter = showFilter });
+            pendingSlider = null;
+            menuOpen = true;
+        }
+
+        /// <summary>Pushes a list and attaches a slider to that level (drawn under the search box).</summary>
+        public void RequestSubMenu(List<SkMenuItem> subMenuOptions, SkMenuSlider slider)
+        {
+            pendingSlider = slider;
+            RequestSubMenu(subMenuOptions);
+        }
+
+        public void RequestSubMenu(List<SkMenuItem> subMenuOptions, float refreshTime = 0, int subWidth = 0)
+        {
+            if (subMenuOptions == null || subMenuOptions.Count == 0) { pendingSlider = null; return; }
+            if (frames.Count > 0 && SameMenu(frames[frames.Count - 1].Items, subMenuOptions))
+            {
+                frames[frames.Count - 1].Items = subMenuOptions;
+                if (pendingSlider != null) frames[frames.Count - 1].Sliders = new List<SkMenuSlider> { pendingSlider };
+            }
+            else
+            {
+                string title = frames.Count == 0
+                    ? (selectedModule >= 0 && menuOptions != null && selectedModule < menuOptions.Count ? ModuleTitle(menuOptions[selectedModule]) : appName)
+                    : "Submenu";
+                frames.Add(new MenuFrame { Title = title, Items = subMenuOptions, Sliders = pendingSlider == null ? null : new List<SkMenuSlider> { pendingSlider } });
+            }
+            pendingSlider = null;
+            menuOpen = true;
+            if (logResponse) SkUtilities.Logz(new string[] { "CONTROLLER", "RESP" }, new string[] { "Submenu created." });
+        }
+
+        public void RequestSubMenu(SkMenu subMenuOptions, float refreshTime = 0, int subWidth = 0)
+        {
+            if (subMenuOptions != null)
+            {
+                RequestSubMenu(subMenuOptions.FlushMenu(), refreshTime, subWidth);
+            }
+        }
+
+        public void UpdateMenuOptions(List<SkModules.SkBaseModule> newMenuOptions)
+        {
+            menuOptions = newMenuOptions;
+            frames.Clear();
+            selectedModule = -1;
+            menuOpen = false;
+        }
+
+        // ------------------------------------------------------------------ text helpers
+
+        private static string CleanText(string s)
+        {
+            return s == null ? "" : s.Replace("\t►", "").Replace("►", "").Replace("\t", " ").Trim();
+        }
+
+        private static string ToggleFree(string s)
+        {
+            return CleanText(s).Replace("[ON]", "").Replace("[OFF]", "").Trim();
+        }
+
+        private static string Display(string s)
+        {
+            string t = CleanText(s);
+            if (t.EndsWith("[ON]")) return t.Substring(0, t.Length - 4) + "<color=#7CFC00>[ON]</color>";
+            if (t.EndsWith("[OFF]")) return t.Substring(0, t.Length - 5) + "<color=#FF8080>[OFF]</color>";
+            return t;
+        }
+
+        private static string ModuleTitle(SkModules.SkBaseModule m)
+        {
+            string t = CleanText(m?.CallerEntry?.ItemText);
+            return t.Length > 0 ? t : (m?.ModuleName ?? "Menu");
+        }
+
+        private static bool SameMenu(List<SkMenuItem> a, List<SkMenuItem> b)
+        {
+            if (a == null || b == null || a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (ToggleFree(a[i]?.ItemText) != ToggleFree(b[i]?.ItemText)) return false;
+            }
+            return true;
+        }
+
+        // ------------------------------------------------------------------ drawing
+
+        private void EnsureStyles()
+        {
+            float alpha = ConfiguredOpacity;
+            if (stylesReady && Mathf.Abs(alpha - stylesAlpha) < 0.001f) return;
+            stylesAlpha = alpha;
+
+            // Speelo's Menu: opacity can be dragged live in a config manager, which would rebuild these every frame.
+            // HideAndDontSave textures are never collected on their own, so release the previous set first.
+            ReleaseTextures();
+
+            texWindow = MakeTex(new Color(0.06f, 0.07f, 0.09f, alpha));
+            texPanel = MakeTex(new Color(0.11f, 0.12f, 0.15f, alpha));
+            texItem = MakeTex(new Color(0.17f, 0.19f, 0.23f, alpha));
+            texItemHover = MakeTex(new Color(0.27f, 0.31f, 0.38f, alpha));
+            texItemActive = MakeTex(new Color(0.13f, 0.42f, 0.55f, alpha));
+            texAccent = MakeTex(new Color(0.10f, 0.30f, 0.40f, alpha));
+            texWhite = MakeTex(Color.white); // tinted per use by GUI.color, for outlines
+
+            Color text = new Color(0.93f, 0.94f, 0.96f);
+            Color textDim = new Color(0.72f, 0.75f, 0.80f);
+
+            styleWindow = new GUIStyle(GUI.skin.window) { fontSize = 14, fontStyle = FontStyle.Bold };
+            styleWindow.padding = new RectOffset(12, 12, 28, 12);
+            styleWindow.normal.background = texWindow;
+            styleWindow.onNormal.background = texWindow;
+            styleWindow.border = new RectOffset(0, 0, 0, 0);
+            styleWindow.normal.textColor = text;
+            styleWindow.onNormal.textColor = text;
+
+            styleItem = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 13, fixedHeight = 27f, richText = true };
+            styleItem.padding = new RectOffset(10, 8, 3, 3);
+            styleItem.border = new RectOffset(0, 0, 0, 0);
+            styleItem.margin = new RectOffset(0, 0, 1, 1);
+            Paint(styleItem, texItem, texItemHover, texItemActive, text);
+
+            styleBack = new GUIStyle(styleItem) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fixedHeight = 25f };
+
+            styleHeader = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
+            styleHeader.normal.textColor = text;
+
+            styleTip = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
+            styleTip.normal.textColor = new Color(0.95f, 0.90f, 0.65f);
+
+            styleSmall = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+            styleSmall.normal.textColor = textDim;
+
+            styleFilter = new GUIStyle(GUI.skin.textField) { fontSize = 13, fixedHeight = 25f };
+            styleFilter.normal.background = texPanel;
+            styleFilter.focused.background = texPanel;
+            styleFilter.hover.background = texPanel;
+            styleFilter.border = new RectOffset(0, 0, 0, 0);
+            styleFilter.padding = new RectOffset(6, 6, 4, 4);
+            styleFilter.normal.textColor = text;
+            styleFilter.focused.textColor = Color.white;
+
+            // Tabs across the top: unselected sits back, selected reads as the active page.
+            styleTab = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontSize = 13, fixedHeight = 30f, richText = true };
+            styleTab.padding = new RectOffset(10, 10, 4, 4);
+            styleTab.border = new RectOffset(0, 0, 0, 0);
+            styleTab.margin = new RectOffset(0, 2, 0, 0);
+            Paint(styleTab, texPanel, texItemHover, texItemActive, textDim);
+
+            styleTabOn = new GUIStyle(styleTab) { fontStyle = FontStyle.Bold, fontSize = 14 };
+            Paint(styleTabOn, texAccent, texAccent, texItemActive, Color.white);
+
+            styleGridCell = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontSize = 10, richText = false, wordWrap = true };
+            styleGridCell.border = new RectOffset(0, 0, 0, 0);
+            styleGridCell.padding = new RectOffset(2, 2, 2, 2);
+            styleGridCell.margin = new RectOffset(0, (int)GridPad, (int)GridPad, 0);
+            Paint(styleGridCell, texItem, texItemHover, texItemActive, textDim);
+
+            styleClose = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontSize = 14, fontStyle = FontStyle.Bold };
+            styleClose.border = new RectOffset(0, 0, 0, 0);
+            styleClose.padding = new RectOffset(0, 0, 0, 0);
+            Paint(styleClose, texPanel, MakeTex(new Color(0.65f, 0.16f, 0.16f, alpha)), texItemActive, text);
+
+            stylesReady = true;
+        }
+
+        private static void ReleaseTextures()
+        {
+            foreach (Texture2D tex in new Texture2D[] { texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite })
+            {
+                if (tex != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(tex);
+                }
+            }
+            texWindow = texPanel = texItem = texItemHover = texItemActive = texAccent = texWhite = null;
+        }
+
+        private static void Paint(GUIStyle style, Texture2D normal, Texture2D hover, Texture2D active, Color text)
+        {
+            style.normal.background = normal;
+            style.hover.background = hover;
+            style.active.background = active;
+            style.focused.background = normal;
+            style.onNormal.background = normal;
+            style.onHover.background = hover;
+            style.onActive.background = active;
+            style.normal.textColor = text;
+            style.hover.textColor = Color.white;
+            style.active.textColor = Color.white;
+            style.focused.textColor = text;
+            style.onNormal.textColor = text;
+            style.onHover.textColor = Color.white;
+            style.onActive.textColor = Color.white;
+        }
+
+        void OnGUI()
+        {
+            if (menuOptions == null || menuOptions.Count == 0) // There will be at least one frame where there is no menu when initialized
+            {
+                UpdateMenuOptions(SkModuleController.GetOptions());
+                return;
+            }
+            if (!menuOpen) return;
+
+            EnsureStyles();
+            if (!windowPlaced)
+            {
+                windowRect.x = 24f;
+                windowRect.y = Mathf.Max(24f, (Screen.height - windowRect.height) / 2f);
+                windowPlaced = true;
+            }
+
+            GUI.color = Color.white;
+            windowRect = GUILayout.Window(WindowId, windowRect, DrawWindow, appName + "  v" + SkBepInExLoader.VERSION, styleWindow);
+            windowRect.x = Mathf.Clamp(windowRect.x, 0f, Mathf.Max(0f, Screen.width - windowRect.width));
+            windowRect.y = Mathf.Clamp(windowRect.y, 0f, Mathf.Max(0f, Screen.height - windowRect.height));
+
+            // Swallow clicks that land outside the window so they don't reach other IMGUI handlers while the menu is open.
+            Event e = Event.current;
+            if (e != null && (e.type == EventType.MouseDown || e.type == EventType.MouseUp) && !windowRect.Contains(e.mousePosition))
+            {
+                e.Use();
+            }
+        }
+
+        private void DrawWindow(int windowID)
+        {
+            try
+            {
+                // Layout, top to bottom. Each section is its own method so the arrangement can be changed
+                // without touching the others.
+                DrawCloseButton();
+                DrawTabs();
+                DrawFrameHeader();
+                DrawFilterRow();
+                DrawSliderRow();
+                DrawItemList();
+                DrawFooter();
+
+                // Everything except the close button's corner drags the window.
+                GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));
+            }
+            catch (ArgumentException)
+            {
+                // IMGUI layout mismatch within a frame (e.g. list changed mid-pass); the next frame redraws cleanly.
+            }
+            catch (Exception ex)
+            {
+                SkUtilities.Logz(new string[] { "CONTROLLER", "ERROR" }, new string[] { ex.Message });
+            }
+            finally
+            {
+                if (pendingAction != null)
+                {
+                    Action a = pendingAction;
+                    pendingAction = null;
+                    try { a(); }
+                    catch (Exception ex)
+                    {
+                        SkUtilities.Logz(new string[] { "CONTROLLER", "ERROR" }, new string[] { ex.Message });
+                    }
+                }
+            }
+        }
+    }
+}

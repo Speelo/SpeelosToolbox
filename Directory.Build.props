@@ -1,0 +1,26 @@
+<Project>
+  <!--
+    Machine-specific paths. Override any of these with an environment variable
+    of the same name (e.g. set VALHEIM_INSTALL=D:\Games\Valheim) or by creating a
+    Directory.Build.props.user next to this file (git-ignored) that sets
+    ValheimInstall and/or TmmProfile.
+
+    The .user import must come first: MSBuild evaluates properties top to bottom,
+    so the derived paths below only see an override that was set before them.
+    Precedence: environment variable > Directory.Build.props.user > default.
+  -->
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
+
+  <PropertyGroup>
+    <ValheimInstall Condition="'$(VALHEIM_INSTALL)' != ''">$(VALHEIM_INSTALL)</ValheimInstall>
+    <ValheimInstall Condition="'$(ValheimInstall)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimInstall>
+    <ValheimManaged>$(ValheimInstall)\valheim_Data\Managed</ValheimManaged>
+
+    <!-- Thunderstore Mod Manager profile that BepInEx + Jotunn are installed in -->
+    <TmmProfile Condition="'$(TMM_PROFILE)' != ''">$(TMM_PROFILE)</TmmProfile>
+    <TmmProfile Condition="'$(TmmProfile)' == ''">$(APPDATA)\Thunderstore Mod Manager\DataFolder\Valheim\profiles\1.0 bitches</TmmProfile>
+    <BepInExCore>$(TmmProfile)\BepInEx\core</BepInExCore>
+    <BepInExPlugins>$(TmmProfile)\BepInEx\plugins</BepInExPlugins>
+    <JotunnDir>$(BepInExPlugins)\ValheimModding-Jotunn</JotunnDir>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,162 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Speelo's Menu for Valheim 1.0 - a maintained fork of Skrip's SkToolbox
+    (https://github.com/derekShaheen/SkToolbox-for-Valheim, GPL-3.0).
+    This fork stays under GPL-3.0; see LICENSE.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <AssemblyName>SpeelosMenu</AssemblyName>
+    <RootNamespace>SkToolbox</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>Speelo, Skrip, derekShaheen</Authors>
+    <Description>Speelo's Menu: clickable cheat menu and console/chat command extender for Valheim 1.0 (fork of Skrip's SkToolbox)</Description>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <ThunderstoreDir>$(MSBuildProjectDirectory)\thunderstore</ThunderstoreDir>
+    <DistDir>$(MSBuildProjectDirectory)\dist</DistDir>
+  </PropertyGroup>
+
+  <Target Name="CheckGamePaths" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(ValheimManaged)\assembly_valheim.dll')" Text="Valheim not found at '$(ValheimManaged)'. Set VALHEIM_INSTALL or edit Directory.Build.props." />
+    <Error Condition="!Exists('$(BepInExCore)\BepInEx.dll')" Text="BepInEx not found at '$(BepInExCore)'. Install BepInExPack_Valheim in the TMM profile or set TMM_PROFILE." />
+  </Target>
+
+  <!-- BepInEx, straight from the Thunderstore profile -->
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Game assemblies -->
+  <ItemGroup>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(ValheimManaged)\assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_utils">
+      <HintPath>$(ValheimManaged)\assembly_utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_guiutils">
+      <HintPath>$(ValheimManaged)\assembly_guiutils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="gui_framework">
+      <HintPath>$(ValheimManaged)\gui_framework.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SoftReferenceableAssets">
+      <HintPath>$(ValheimManaged)\SoftReferenceableAssets.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(ValheimManaged)\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Splatform">
+      <HintPath>$(ValheimManaged)\Splatform.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Splatform.Steam">
+      <HintPath>$(ValheimManaged)\Splatform.Steam.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Unity 6 engine modules (IMGUI for the on-screen menu and debug console) -->
+  <ItemGroup>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ValheimManaged)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ValheimManaged)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- After every build: drop the DLL into the TMM profile so launching Valheim (modded) from TMM loads it -->
+  <Target Name="DeployToProfile" AfterTargets="Build" Condition="Exists('$(BepInExPlugins)')">
+    <PropertyGroup>
+      <DeployDir>$(BepInExPlugins)\$(AssemblyName)</DeployDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <DeployFiles Include="$(TargetPath)" />
+      <DeployFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <MakeDir Directories="$(DeployDir)" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed $(AssemblyName).dll -> $(DeployDir)" />
+  </Target>
+
+  <!-- Release build: also produce a Thunderstore-ready zip in dist/ -->
+  <Target Name="PackThunderstore" AfterTargets="DeployToProfile" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <StageDir>$(BaseIntermediateOutputPath)ts-stage</StageDir>
+      <ZipPath>$(DistDir)\$(AssemblyName)-$(Version).zip</ZipPath>
+      <_ManifestJson>$([System.IO.File]::ReadAllText('$(ThunderstoreDir)\manifest.json'))</_ManifestJson>
+      <_ManifestHasVersion>$([System.Text.RegularExpressions.Regex]::IsMatch($(_ManifestJson), '&quot;version_number&quot;\s*:\s*&quot;$(Version)&quot;'))</_ManifestHasVersion>
+    </PropertyGroup>
+    <Error Condition="'$(_ManifestHasVersion)' != 'True'" Text="thunderstore\manifest.json version_number does not match csproj Version '$(Version)'. Bump both (and VERSION in src\SkBepInExLoader.cs)." />
+    <RemoveDir Directories="$(StageDir)" />
+    <MakeDir Directories="$(StageDir);$(DistDir)" />
+    <ItemGroup>
+      <TsFiles Include="$(ThunderstoreDir)\manifest.json;$(ThunderstoreDir)\README.md;$(ThunderstoreDir)\CHANGELOG.md;$(ThunderstoreDir)\icon.png" />
+      <TsFiles Include="$(MSBuildProjectDirectory)\LICENSE" />
+      <TsFiles Include="$(TargetPath)" />
+      <TsFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(TsFiles)" DestinationFolder="$(StageDir)" />
+    <Delete Files="$(ZipPath)" />
+    <ZipDirectory SourceDirectory="$(StageDir)" DestinationFile="$(ZipPath)" />
+    <Message Importance="high" Text="Thunderstore package -> $(ZipPath)" />
+  </Target>
+
+</Project>
