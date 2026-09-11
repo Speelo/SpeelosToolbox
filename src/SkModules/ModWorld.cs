@@ -6,7 +6,7 @@ using UnityEngine;
 namespace SkToolbox.SkModules
 {
     /// <summary>
-    /// Speelo's Menu: the World tab. Terrain tools, weather, time, wind, events, map and cleanup.
+    /// Speelo's Toolbox: the World tab. Terrain tools, weather, time, wind, events, map and cleanup.
     /// Terrain radius and height are sliders rather than the old fixed-preset submenus, and every entry spells
     /// out what it does instead of the "T - ..." shorthand.
     /// </summary>

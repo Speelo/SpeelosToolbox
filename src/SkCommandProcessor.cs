@@ -247,7 +247,7 @@ namespace SkToolbox
                 //        entry.Value.IsCheat = false;
                 //    }
                 //}
-                new Terminal.ConsoleCommand("echo", "Echo the text back to the console. This is intended for use with aliases and the autorun features. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("echo", "Echo the text back to the console. This is intended for use with aliases and the autorun features. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length > 1)
                     {
@@ -260,7 +260,7 @@ namespace SkToolbox
                             PrintOut(str, LogTo.Console, false);
                     }
                 });
-                new Terminal.ConsoleCommand("/console", "[1/0] - Toggle the console. No parameter with toggle. 1 = Open, 0 = Closed. Intended for use with hotkeys and aliases. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/console", "[1/0] - Toggle the console. No parameter with toggle. 1 = Open, 0 = Closed. Intended for use with hotkeys and aliases. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length > 1)
                     {
@@ -283,12 +283,12 @@ namespace SkToolbox
                         }
                     }
                 });
-                new Terminal.ConsoleCommand("/q", "Quickly exit the game. Commands are sometimes just more convenient. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/q", "Quickly exit the game. Commands are sometimes just more convenient. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     PrintOut("Quitting game...", LogTo.Console | LogTo.DebugConsole);
                     Application.Quit();
                 });
-                new Terminal.ConsoleCommand("/clear", "Clear the current output shown in the console. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/clear", "Clear the current output shown in the console. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Console.instance.m_output.text = string.Empty;
                     try
@@ -301,7 +301,7 @@ namespace SkToolbox
 
                     }
                 });
-                new Terminal.ConsoleCommand("/repair", "Repair your inventory. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/repair", "Repair your inventory. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     List<ItemDrop.ItemData> itemList = new List<ItemDrop.ItemData>();
                     Player.m_localPlayer.GetInventory().GetWornItems(itemList);
@@ -318,11 +318,11 @@ namespace SkToolbox
                     }
                     PrintOut("All items repaired!");
                 });
-                new Terminal.ConsoleCommand("/portals", "List all portal tags. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/portals", "List all portal tags. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     PrintOut(ListPortals(), LogTo.Console);
                 });
-                new Terminal.ConsoleCommand("/tl", "[Radius=5] - Level nearby terrain. Radius 30 max. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/tl", "[Radius=5] - Level nearby terrain. Radius 30 max. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameObject tLevel = ZNetScene.instance.GetPrefab("digg_v2");
                     if (tLevel == null)
@@ -345,7 +345,7 @@ namespace SkToolbox
 
                     PrintOut("Terrain levelled!");
                 });
-                new Terminal.ConsoleCommand("/tu", "[Radius=5] - Undo terrain modifications around you. Radius 50 max. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/tu", "[Radius=5] - Undo terrain modifications around you. Radius 50 max. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     float radius = 5f;
                     if (args.Length > 1)
@@ -362,7 +362,7 @@ namespace SkToolbox
 
                     PrintOut("Terrain reset!");
                 });
-                new Terminal.ConsoleCommand("/tr", "[Radius=5] [Height=1] - Raise nearby terrain. Radius 30 max. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/tr", "[Radius=5] [Height=1] - Raise nearby terrain. Radius 30 max. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameObject tLevel = ZNetScene.instance.GetPrefab("raise");
                     if (tLevel == null)
@@ -396,7 +396,7 @@ namespace SkToolbox
 
                     PrintOut("Terrain raised!");
                 });
-                new Terminal.ConsoleCommand("/td", "[Radius=5] [Height=1] - Dig nearby terrain. Radius 30 max. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/td", "[Radius=5] [Height=1] - Dig nearby terrain. Radius 30 max. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameObject tLevel = ZNetScene.instance.GetPrefab("digg_v2");
                     if (tLevel == null)
@@ -431,12 +431,12 @@ namespace SkToolbox
                     PrintOut("Terrain dug!");
                     return;
                 });
-                new Terminal.ConsoleCommand("/resetwind", "If wind has been set, this will allow the game to take control of the wind again. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/resetwind", "If wind has been set, this will allow the game to take control of the wind again. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     EnvMan.instance.ResetDebugWind();
                     PrintOut("Wind unlocked and under game control.");
                 });
-                new Terminal.ConsoleCommand("/wind", "[Angle] [Intensity] - Set the wind direction and intensity. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/wind", "[Angle] [Intensity] - Set the wind direction and intensity. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length == 3)
                     {
@@ -449,7 +449,7 @@ namespace SkToolbox
                         PrintOut("Failed to set wind. Check parameters! Ex. /wind 240 5");
                     }
                 });
-                new Terminal.ConsoleCommand("/env", "[Weather] - Change the weather. No parameter provided will list all weather. -1 will allow the game to control the weather again. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/env", "[Weather] - Change the weather. No parameter provided will list all weather. -1 will allow the game to control the weather again. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length == 1)
                     {
@@ -518,7 +518,7 @@ namespace SkToolbox
                         PrintOut("Failed to set weather. Check parameters! Ex. /env, /env -1, /env Misty");
                     }
                 });
-                new Terminal.ConsoleCommand("/fly", "Toggle flying. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/fly", "Toggle flying. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: use Player.ToggleDebugFly() (flips m_debugFly AND writes ZDOVars.s_debugFly so remote clients/monsters see IsDebugFlying()).
                     Player lp = Player.m_localPlayer;
@@ -531,7 +531,7 @@ namespace SkToolbox
                     Player.m_debugMode = flyEnabled || noCostEnabled || SkCommandPatcher.BCheat; // never stomp debugmode enabled by /imacheater or /nocost
                     PrintOut("Fly toggled! (" + flyEnabled.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/listicons", "[Filter] - List item prefabs that have an icon, for picking menu icons. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/listicons", "[Filter] - List item prefabs that have an icon, for picking menu icons. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (ObjectDB.instance == null || ObjectDB.instance.m_items == null)
                     {
@@ -554,12 +554,12 @@ namespace SkToolbox
                     PrintOut(count + " item icon(s) listed.");
                 });
 
-                new Terminal.ConsoleCommand("/alt", "(Removed) The menu is mouse-driven now; press the MenuToggleKey (default F6). (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/alt", "(Removed) The menu is mouse-driven now; press the MenuToggleKey (default F6). (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     SkMenuController menu = SkLoader.Load != null ? SkLoader.Load.GetComponent<SkMenuController>() : null;
                     PrintOut("The menu is mouse-driven now. Press " + (menu != null ? menu.ToggleKey.ToString() : "F6") + " to open it; the /alt keyboard controls were removed.");
                 });
-                new Terminal.ConsoleCommand("/stopevent", "Stops a current event. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/stopevent", "Stops a current event. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: on a joined server the server re-broadcasts the running event every 2 s (RPC_SetEvent), so a local reset is undone.
                     if (ZNet.instance == null || !ZNet.instance.IsServer())
@@ -570,12 +570,12 @@ namespace SkToolbox
                     RandEventSystem.instance.ResetRandomEvent();
                     PrintOut("Event stopped!");
                 });
-                new Terminal.ConsoleCommand("/revealmap", "Reveals the entire minimap. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/revealmap", "Reveals the entire minimap. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Minimap.instance.ExploreAll();
                     PrintOut("Map revealed!");
                 });
-                new Terminal.ConsoleCommand("/whois", "List all players. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/whois", "List all players. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: GetConnectedPeers() is only the server on a client; use the server-synced roster.
                     string playerStr = string.Empty;
@@ -590,7 +590,7 @@ namespace SkToolbox
                     }
                     PrintOut("Active Players (" + players.Count + ") - " + playerStr);
                 });
-                new Terminal.ConsoleCommand("/give", "[Item] [Qty=1], OR /give [Item] [Qty=1] [Player] [Level=1] - Gives item to player. If player has a space in name, only provide name before the space. Capital letters matter in item / player name! (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/give", "[Item] [Qty=1], OR /give [Item] [Qty=1] [Player] [Level=1] - Gives item to player. If player has a space in name, only provide name before the space. Capital letters matter in item / player name! (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     string cmdPlr = Player.m_localPlayer.GetPlayerName();
                     string cmdItem = string.Empty;
@@ -684,7 +684,7 @@ namespace SkToolbox
                     }
                     return;
                 });
-                new Terminal.ConsoleCommand("/god", "Toggle Godmode. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/god", "Toggle Godmode. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: derive the toggle from the live Player state (m_godMode is per Player instance, the static survives relog).
                     if (Player.m_localPlayer == null)
@@ -696,13 +696,13 @@ namespace SkToolbox
                     Player.m_localPlayer.SetGodMode(godEnabled);    // Player.cs:4465
                     PrintOut("God toggled! (" + godEnabled.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/clearinventory", "Removes all items from your inventory. There is no confirmation, be careful. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/clearinventory", "Removes all items from your inventory. There is no confirmation, be careful. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Player.m_localPlayer.UnequipAllItems(); // Valheim 1.0: RemoveAll() leaves Humanoid m_rightItem/m_leftItem/armor slots pointing at removed ItemData
                     Player.m_localPlayer.GetInventory().RemoveAll();
                     PrintOut("All items removed from inventory.");
                 });
-                new Terminal.ConsoleCommand("/findtomb", "Pin nearby dead player tombstones on the map if any currently exist. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/findtomb", "Pin nearby dead player tombstones on the map if any currently exist. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     TombStone[] listTraders = GameObject.FindObjectsByType<TombStone>(FindObjectsSortMode.None);
                     if (listTraders.Length > 0)
@@ -718,17 +718,17 @@ namespace SkToolbox
                     PrintOut("Tombstone sought out! Potentially " + listTraders.Length + " found.");
                     return;
                 });
-                new Terminal.ConsoleCommand("/seed", "Reveals the map seed. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/seed", "Reveals the map seed. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     World wrld = SkUtilities.GetPrivateField<World>(WorldGenerator.instance, "m_world");
                     PrintOut("Map seed: " + wrld.m_seedName);
                 });
-                new Terminal.ConsoleCommand("/freecam", "Toggle freecam. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/freecam", "Toggle freecam. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameCamera.instance.ToggleFreeFly();
                     PrintOut("Free cam toggled " + GameCamera.InFreeFly().ToString());
                 });
-                new Terminal.ConsoleCommand("/heal", "[Player=local] - Heal Player. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/heal", "[Player=local] - Heal Player. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length > 1)
                     {
@@ -750,13 +750,13 @@ namespace SkToolbox
                         PrintOut("Self healed.");
                     }
                 });
-                new Terminal.ConsoleCommand("/nores", "Toggle no restrictions to where you can build (except ward zones). (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/nores", "Toggle no restrictions to where you can build (except ward zones). (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     SkCommandPatcher.InitPatch();
                     SkCommandPatcher.bBuildAnywhere = !SkCommandPatcher.bBuildAnywhere;
                     PrintOut("No build restrictions toggled! (" + SkCommandPatcher.bBuildAnywhere.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/nocost", "Toggle no requirement building. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/nocost", "Toggle no requirement building. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: use the public setter (refreshes the hammer piece table) and derive the state from the live Player.
                     Player lp = Player.m_localPlayer;
@@ -770,7 +770,7 @@ namespace SkToolbox
                     Player.m_debugMode = flyEnabled || noCostEnabled || SkCommandPatcher.BCheat; // never stomp debugmode enabled by /imacheater or /fly
                     PrintOut("No build cost/requirements toggled! (" + noCostEnabled.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/tp", "[X,Y] - Teleport you to the coords provided. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/tp", "[X,Y] - Teleport you to the coords provided. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length != 2 || !args[1].Contains(","))
                     {
@@ -815,7 +815,7 @@ namespace SkToolbox
                         PrintOut("Syntax /tp X,Z");
                     }
                 });
-                new Terminal.ConsoleCommand("/detect", "[Range=20] - Toggle enemy detection. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/detect", "[Range=20] - Toggle enemy detection. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     bDetectEnemies = !bDetectEnemies;
                     if (args.Length > 0)
@@ -832,7 +832,7 @@ namespace SkToolbox
                     }
                     PrintOut("Detect enemies toggled! (" + bDetectEnemies.ToString() + ", range: " + bDetectRange + ")");
                 });
-                new Terminal.ConsoleCommand("/imacheater", "Use the toolbox to force enable standard cheats on any server. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/imacheater", "Use the toolbox to force enable standard cheats on any server. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     SkCommandPatcher.InitPatch();
                     SkCommandPatcher.BCheat = !SkCommandPatcher.BCheat;
@@ -880,22 +880,22 @@ namespace SkToolbox
                         PrintOut("Vanilla cheat commands (god/fly/ghost/nocost/debugmode...) are now valid on this client, including on joined servers.");
                     }
                 });
-                new Terminal.ConsoleCommand("/nosup", "Toggle no supports required for buildings - WARNING! - IF YOU REJOIN AND THIS IS DISABLED, YOUR STRUCTURES MAY FALL APART - USE WITH CARE. Maybe use the AutoRun functionality? (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/nosup", "Toggle no supports required for buildings - WARNING! - IF YOU REJOIN AND THIS IS DISABLED, YOUR STRUCTURES MAY FALL APART - USE WITH CARE. Maybe use the AutoRun functionality? (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     SkCommandPatcher.InitPatch();
                     SkCommandPatcher.BFreeSupport = !SkCommandPatcher.BFreeSupport;
                     PrintOut("No build support requirements toggled! (" + SkCommandPatcher.BFreeSupport.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/coords", "Show coords in corner of the screen. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/coords", "Show coords in corner of the screen. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     bCoords = !bCoords;
                     PrintOut("Show coords toggled! (" + bCoords.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/resetmap", "Reset the map exploration. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/resetmap", "Reset the map exploration. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Minimap.instance.Reset();
                 });
-                new Terminal.ConsoleCommand("/infstam", "Toggles infinite stamina. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/infstam", "Toggles infinite stamina. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     infStamina = !infStamina;
                     if (infStamina)
@@ -913,12 +913,12 @@ namespace SkToolbox
                     }
                     PrintOut("Infinite stamina toggled! (" + infStamina.ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/tame", "Tame all nearby creatures. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/tame", "Tame all nearby creatures. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Tameable.TameAllInArea(Player.m_localPlayer.transform.position, 20f);
                     PrintOut("Creatures tamed!");
                 });
-                new Terminal.ConsoleCommand("/farinteract", "[Distance=50] - Toggles far interactions (building as well). To change distance, toggle this off then back on with new distance. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/farinteract", "[Distance=50] - Toggles far interactions (building as well). To change distance, toggle this off then back on with new distance. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     farInteract = !farInteract;
                     if (farInteract)
@@ -950,12 +950,12 @@ namespace SkToolbox
                         PrintOut("Far interactions toggled! (" + farInteract.ToString() + ")");
                     }
                 });
-                new Terminal.ConsoleCommand("/ghost", "Toggle Ghostmode (enemy creatures cannot see you). (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/ghost", "Toggle Ghostmode (enemy creatures cannot see you). (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Player.m_localPlayer.SetGhostMode(!Player.m_localPlayer.InGhostMode());
                     PrintOut("Ghost mode toggled! (" + Player.m_localPlayer.InGhostMode().ToString() + ")");
                 });
-                new Terminal.ConsoleCommand("/tod", "[0-1] - Set (and lock) time of day (-1 to unlock time). Ex. /tod 0.5 (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args) // Valheim 1.0: description was a copy-paste from /portals
+                new Terminal.ConsoleCommand("/tod", "[0-1] - Set (and lock) time of day (-1 to unlock time). Ex. /tod 0.5 (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args) // Valheim 1.0: description was a copy-paste from /portals
                 {
                     if (args.Length > 1)
                     {
@@ -981,12 +981,12 @@ namespace SkToolbox
                         PrintOut("Failed. Syntax /tod [0-1] Ex. /tod 0.5");
                     }
                 });
-                new Terminal.ConsoleCommand("/optterrain", "Optimize old terrain modifications. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/optterrain", "Optimize old terrain modifications. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     TerrainComp.UpgradeTerrain();
                     Heightmap.UpdateTerrainAlpha(); // Valheim 1.0: vanilla optterrain also re-syncs the paint-mask alpha into the TerrainComp
                 });
-                new Terminal.ConsoleCommand("/set", "[Option] [value] [value]. Option can be one of [cw,difficulty,exploreradius,jumpforce,pickup,skill,speed]. All options take 1 value except [skill,speed]. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/set", "[Option] [value] [value]. Option can be one of [cw,difficulty,exploreradius,jumpforce,pickup,skill,speed]. All options take 1 value except [skill,speed]. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length > 1)
                     {
@@ -1162,7 +1162,7 @@ namespace SkToolbox
                         }
                     }
                 });
-                new Terminal.ConsoleCommand("/removedrops", "Removes items from the ground. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/removedrops", "Removes items from the ground. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     // Valheim 1.0: skip live fish and item-pieces (like vanilla removedrops) and claim ownership so ZNetScene.Destroy really destroys the ZDO.
                     ItemDrop[] array2 = UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None);
@@ -1188,7 +1188,7 @@ namespace SkToolbox
                     PrintOut("Items cleared (" + removed + ").");
                 });
                 // Valheim 1.0: /spawntamed no longer re-invokes itself (StackOverflow) nor mass-tames via TameAllInArea (which now ignores point/radius); it tames only the spawned creature.
-                new Terminal.ConsoleCommand("/spawntamed", "[Creature Name] [Level=1] - Spawns a tamed creature in front of you. Capitals in name matter! Ex. /spawntamed Boar 3. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/spawntamed", "[Creature Name] [Level=1] - Spawns a tamed creature in front of you. Capitals in name matter! Ex. /spawntamed Boar 3. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameObject spawned = SpawnPrefab(args);
                     if (spawned == null) return;
@@ -1207,7 +1207,7 @@ namespace SkToolbox
                     PrintOut("Spawned tamed - " + args[1]);
                 });
                 // Valheim 1.0: /spawn body moved to SpawnPrefab(); the dead "spawn_id"/"alive_time" writes onto a random ZDO were dropped.
-                new Terminal.ConsoleCommand("/spawn", "[Creature Name] [Level=1] - Spawns a creature or prefab in front of you. Capitals in name matter! Ex. /spawn Boar 3 (use /give for items!) (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/spawn", "[Creature Name] [Level=1] - Spawns a creature or prefab in front of you. Capitals in name matter! Ex. /spawn Boar 3 (use /give for items!) (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     GameObject spawned = SpawnPrefab(args);
                     if (spawned != null)
@@ -1215,7 +1215,7 @@ namespace SkToolbox
                         PrintOut("Spawned - " + args[1]);
                     }
                 });
-                new Terminal.ConsoleCommand("/killall", "Kills all nearby creatures. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/killall", "Kills all nearby creatures. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     List<Character> CharList = new List<Character>();
                     Character.GetCharactersInRange(Player.m_localPlayer.transform.position, 50f, CharList);
@@ -1230,7 +1230,7 @@ namespace SkToolbox
                     }
                     PrintOut("Nearby creatures killed! (50m)");
                 });
-                new Terminal.ConsoleCommand("/listitems", "[Name Contains] - List all items. Optionally include name starts with. Ex. /listitems Woo returns any item that contains the letters 'Woo'. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/listitems", "[Name Contains] - List all items. Optionally include name starts with. Ex. /listitems Woo returns any item that contains the letters 'Woo'. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     if (args.Length > 1)
                     { //starts with
@@ -1252,7 +1252,7 @@ namespace SkToolbox
                         }
                     }
                 });
-                new Terminal.ConsoleCommand("/listprefabs", "[Name Contains] - Lists all prefabs - List all prefabs / creatures. Optionally include name starts with.Ex. / listprefabs Troll returns any prefab that starts with the letters 'Troll'. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/listprefabs", "[Name Contains] - Lists all prefabs - List all prefabs / creatures. Optionally include name starts with.Ex. / listprefabs Troll returns any prefab that starts with the letters 'Troll'. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     ConsoleOpt.BuildPrefabs();
                     if (args.Length > 1)
@@ -1273,7 +1273,7 @@ namespace SkToolbox
                         }
                     }
                 });
-                new Terminal.ConsoleCommand("/listskills", "Lists all skills. (Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/listskills", "Lists all skills. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     string skillList = "Skills found: ";
                     foreach (object obj in Enum.GetValues(typeof(Skills.SkillType)))
@@ -1285,7 +1285,7 @@ namespace SkToolbox
                     PrintOut(skillList, LogTo.Console | LogTo.DebugConsole);
                     return;
                 });
-                new Terminal.ConsoleCommand("/?", "(Speelo's Menu)", delegate (Terminal.ConsoleEventArgs args)
+                new Terminal.ConsoleCommand("/?", "(Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
                     Console.instance.TryRunCommand("help");
                     return;
@@ -1318,8 +1318,8 @@ namespace SkToolbox
             if (inCommand.StartsWith("help") && source.HasFlag(LogTo.Console))
             {
                 Console.instance.Print("devcommands - Enable standard developer/cheat commands");
-                Console.instance.Print("/? [Page] - Speelo's Menu Commands - Pages 1 through " + (Mathf.Ceil(commandList.Count / pageSize) + (commandList.Count % pageSize == 0 ? 0 : 1)) + " - Example /? 1");
-                Console.instance.Print("Speelo's Menu - Close the console and press " + (SkLoader.Load != null && SkLoader.Load.GetComponent<SkMenuController>() != null ? SkLoader.Load.GetComponent<SkMenuController>().ToggleKey.ToString() : "F6") + " to open the menu.");
+                Console.instance.Print("/? [Page] - Speelo's Toolbox Commands - Pages 1 through " + (Mathf.Ceil(commandList.Count / pageSize) + (commandList.Count % pageSize == 0 ? 0 : 1)) + " - Example /? 1");
+                Console.instance.Print("Speelo's Toolbox - Close the console and press " + (SkLoader.Load != null && SkLoader.Load.GetComponent<SkMenuController>() != null ? SkLoader.Load.GetComponent<SkMenuController>().ToggleKey.ToString() : "F6") + " to open the menu.");
                 return false;
             }
 
@@ -2646,7 +2646,7 @@ namespace SkToolbox
             PrintOut(text, LogTo.Console, false);
         }
 
-        // Speelo's Menu: command output normally goes to the F5 console, which is closed while the clickable menu is
+        // Speelo's Toolbox: command output normally goes to the F5 console, which is closed while the clickable menu is
         // up, so clicking a button looked like it did nothing. While a menu item runs, mirror the first line of its
         // output to the on-screen message area.
         internal static bool MenuFeedbackActive = false;
@@ -2694,7 +2694,7 @@ namespace SkToolbox
             }
             if ((source.HasFlag(LogTo.Console) || (SkConfigEntry.CAllowChatOutput != null && !SkConfigEntry.CAllowChatOutput.Value)) && Console.instance != null)
             {
-                Console.instance.Print("(Speelo's Menu) " + text);
+                Console.instance.Print("(Speelo's Toolbox) " + text);
                 //if (ConsoleOpt != null && ConsoleOpt.conWriteToFile)
                 //{
                 //    SkUtilities.Logz(new string[] { "DUMP", "ITEM" }, new string[] { text, });
@@ -2716,14 +2716,14 @@ namespace SkToolbox
             {
                 SkUtilities.Logz(new string[] { "TOOLBOX" }, new string[] { text });
             }
-            // Speelo's Menu: echo to the screen while a menu item is running, so the click is visibly acknowledged.
+            // Speelo's Toolbox: echo to the screen while a menu item is running, so the click is visibly acknowledged.
             if (MenuFeedbackActive)
             {
                 Notify(text);
             }
         }
 
-        public static void ChatPrint(string ln, string source = "(Speelo's Menu) ")
+        public static void ChatPrint(string ln, string source = "(Speelo's Toolbox) ")
         {
             if (Chat.instance != null)
             {

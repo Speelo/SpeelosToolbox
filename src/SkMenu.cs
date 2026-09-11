@@ -45,7 +45,7 @@ namespace SkToolbox
         public void AddItemToggle(string inText, ref bool inToggleVar, Action<string> outMethod, string inTip = null)
                             => listItems.Add(new SkMenuItem(inText + " " + (inToggleVar ? toggleStrOn : toggleStrOff), outMethod, inTip));
 
-        /// <summary>Speelo's Menu: toggle entry carrying an icon (see SkIcons for where they come from).</summary>
+        /// <summary>Speelo's Toolbox: toggle entry carrying an icon (see SkIcons for where they come from).</summary>
         public void AddItemToggle(string inText, ref bool inToggleVar, Action outMethod, UnityEngine.Sprite icon, string inTip = null)
                             => listItems.Add(new SkMenuItem(inText + " " + (inToggleVar ? toggleStrOn : toggleStrOff), outMethod, inTip) { Icon = icon });
 

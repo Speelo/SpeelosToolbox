@@ -514,11 +514,11 @@ namespace SkToolbox.SkModules
                     };
                     if (SkVersionChecker.VersionCurrent())
                     {
-                        ConsoleOutput = GUILayout.Window(39979, rectConsoleOutput, ProcessConsoleOutput, " Speelo's Menu (" + SkVersionChecker.currentVersion + ") by Skrip (DS)", ConsoleOutputStyle);
+                        ConsoleOutput = GUILayout.Window(39979, rectConsoleOutput, ProcessConsoleOutput, " Speelo's Toolbox (" + SkVersionChecker.currentVersion + ") by Skrip (DS)", ConsoleOutputStyle);
                     }
                     else
                     {
-                        ConsoleOutput = GUILayout.Window(39979, rectConsoleOutput, ProcessConsoleOutput, " Speelo's Menu, based on SkToolbox by Skrip ► " +
+                        ConsoleOutput = GUILayout.Window(39979, rectConsoleOutput, ProcessConsoleOutput, " Speelo's Toolbox, based on SkToolbox by Skrip ► " +
                             "New Version Available on NexusMods!\t► Current: " + SkVersionChecker.currentVersion + " Latest: " + SkVersionChecker.latestVersion, ConsoleOutputStyle);
                     }
                 }

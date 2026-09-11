@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SkToolbox.Utility
 {
     /// <summary>
-    /// Speelo's Menu: resolves menu icons from the game's own art instead of shipping any.
+    /// Speelo's Toolbox: resolves menu icons from the game's own art instead of shipping any.
     /// Every icon is an existing item's sprite, looked up by prefab name through ObjectDB.
     /// Lookups are cached, and an unknown name resolves to null so the row simply draws without an icon.
     /// </summary>

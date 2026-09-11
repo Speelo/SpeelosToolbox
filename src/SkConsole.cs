@@ -64,7 +64,7 @@ namespace SkToolbox
         static readonly GUIContent clearLabel = new GUIContent("Clear", "Clear the contents of the console.");
         static readonly GUIContent collapseLabel = new GUIContent("Collapse", "Hide repeated messages.");
         const int margin = 350;
-        const string windowTitle = "Console [Speelo's Menu]";
+        const string windowTitle = "Console [Speelo's Toolbox]";
 
         static readonly Dictionary<LogType, Color> logTypeColors = new Dictionary<LogType, Color>
         {
@@ -131,7 +131,7 @@ namespace SkToolbox
 
         void Start()
         {
-            logSavePath = Application.persistentDataPath + "/!SpeelosMenu Console Log.txt";
+            logSavePath = Application.persistentDataPath + "/!SpeelosToolbox Console Log.txt";
             if (openOnStart)
             {
                 isVisible = true;

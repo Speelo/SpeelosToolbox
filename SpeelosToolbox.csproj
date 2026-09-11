@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Speelo's Menu for Valheim 1.0 - a maintained fork of Skrip's SkToolbox
+    Speelo's Toolbox for Valheim 1.0 - a maintained fork of Skrip's SkToolbox
     (https://github.com/derekShaheen/SkToolbox-for-Valheim, GPL-3.0).
     This fork stays under GPL-3.0; see LICENSE.
   -->
@@ -12,11 +12,11 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
 
-    <AssemblyName>SpeelosMenu</AssemblyName>
+    <AssemblyName>SpeelosToolbox</AssemblyName>
     <RootNamespace>SkToolbox</RootNamespace>
     <Version>1.0.0</Version>
     <Authors>Speelo, Skrip, derekShaheen</Authors>
-    <Description>Speelo's Menu: clickable cheat menu and console/chat command extender for Valheim 1.0 (fork of Skrip's SkToolbox)</Description>
+    <Description>Speelo's Toolbox: clickable cheat menu and console/chat command extender for Valheim 1.0 (fork of Skrip's SkToolbox)</Description>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
 
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

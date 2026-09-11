@@ -177,19 +177,19 @@ namespace SkToolbox.Utility
                 switch (logType)
                 {
                     case LogType.Error:
-                        Debug.LogError("(Speelo's Menu) -> " + strBuild);
+                        Debug.LogError("(Speelo's Toolbox) -> " + strBuild);
                         break;
                     case LogType.Warning:
-                        Debug.LogWarning("(Speelo's Menu) -> " + strBuild);
+                        Debug.LogWarning("(Speelo's Toolbox) -> " + strBuild);
                         break;
                     default:
-                        Debug.Log("(Speelo's Menu) -> " + strBuild);
+                        Debug.Log("(Speelo's Toolbox) -> " + strBuild);
                         break;
                 }
             }
             else
             {
-                Debug.Log("(Speelo's Menu) -> " + strBuild);
+                Debug.Log("(Speelo's Toolbox) -> " + strBuild);
             }
         }
 
@@ -218,7 +218,7 @@ namespace SkToolbox.Utility
                 }
                 strBuild = strBuild.Remove(strBuild.Length - 2, 1);
             }
-            return "(Speelo's Menu) -> " + strBuild;
+            return "(Speelo's Toolbox) -> " + strBuild;
         }
 
         /// <summary>
@@ -234,7 +234,7 @@ namespace SkToolbox.Utility
             strBuild += " (OUT) -> ";
             strBuild = $"{strBuild}{message} ";
 
-            Debug.Log("(Speelo's Menu) -> " + strBuild);
+            Debug.Log("(Speelo's Toolbox) -> " + strBuild);
         }
 
         // GUI Items

@@ -48,7 +48,7 @@ namespace SkToolbox
         public string ItemTip { get => itemTip; set => itemTip = value; }
         public Action<string> ItemClassStr { get => itemClassStr; set => itemClassStr = value; }
 
-        /// <summary>Speelo's Menu: optional icon drawn at the left of the row. Uses the game's own item sprites.</summary>
+        /// <summary>Speelo's Toolbox: optional icon drawn at the left of the row. Uses the game's own item sprites.</summary>
         public Sprite Icon { get; set; }
 
         /// <summary>

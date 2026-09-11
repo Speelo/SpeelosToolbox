@@ -8,7 +8,7 @@ using static SkToolbox.Utility.SkUtilities;
 namespace SkToolbox
 {
     /// <summary>
-    /// Speelo's Menu: the click-driven on-screen menu (IMGUI). A configurable key (default F6) toggles it.
+    /// Speelo's Toolbox: the click-driven on-screen menu (IMGUI). A configurable key (default F6) toggles it.
     /// Categories (modules) sit on the left, the current item list on the right with a submenu stack,
     /// a search box for long lists, and a hover tip at the bottom. While it is open, the Harmony patches in
     /// SkCommandPatcher free the mouse cursor and pause player input.
@@ -93,7 +93,7 @@ namespace SkToolbox
         private static float ConfiguredOpacity =>
             SkConfigEntry.OMenuOpacity == null ? 0.96f : Mathf.Clamp(SkConfigEntry.OMenuOpacity.Value, 0.25f, 1f);
 
-        /// <summary>Speelo's Menu: Unity's built-in IMGUI skin is largely see-through, which made the menu hard to
+        /// <summary>Speelo's Toolbox: Unity's built-in IMGUI skin is largely see-through, which made the menu hard to
         /// read over bright terrain. Every surface gets an explicit solid texture instead.</summary>
         private static Texture2D MakeTex(Color color)
         {
@@ -116,7 +116,7 @@ namespace SkToolbox
         private static bool KeyDown(KeyCode key)
         {
             if (s_unmappedKeys.Contains(key)) return false;
-            // Speelo's Menu: bypass this mod's own input block (SkCommandPatcher.PatchMenuKeyDown) so the menu can
+            // Speelo's Toolbox: bypass this mod's own input block (SkCommandPatcher.PatchMenuKeyDown) so the menu can
             // always be closed again, even though every other key is swallowed while it is open.
             SkCommandPatcher.BypassInputBlock = true;
             try { return ZInput.GetKeyDown(key, false); }
@@ -203,7 +203,7 @@ namespace SkToolbox
             {
                 if (menuOpen) CloseMenu(); else OpenMenu();
             }
-            // Speelo's Menu: Escape closes this menu instead of stacking the vanilla pause menu on top of it.
+            // Speelo's Toolbox: Escape closes this menu instead of stacking the vanilla pause menu on top of it.
             else if (menuOpen && KeyDown(KeyCode.Escape))
             {
                 CloseMenu();
@@ -213,7 +213,7 @@ namespace SkToolbox
         public void OpenMenu()
         {
             if (menuOptions == null || menuOptions.Count == 0) return;
-            // Speelo's Menu: the cursor/input patches live in SkCommandPatcher, which is normally applied by
+            // Speelo's Toolbox: the cursor/input patches live in SkCommandPatcher, which is normally applied by
             // SkCommandProcessor.Announce(). Applying here too (idempotent) guarantees they exist before the first
             // frame the menu is interactive, otherwise the cursor would stay locked to the camera.
             SkCommandPatcher.InitPatch();
@@ -280,7 +280,7 @@ namespace SkToolbox
             bool opensSubmenu = item.ItemText != null && item.ItemText.Contains("►");
             int depthBefore = frames.Count;
 
-            // Speelo's Menu: mirror whatever the action prints to the on-screen message area, because the console it
+            // Speelo's Toolbox: mirror whatever the action prints to the on-screen message area, because the console it
             // normally prints to is closed while this menu is up.
             SkCommandProcessor.MenuFeedbackActive = true;
             SkCommandProcessor.MenuFeedbackShown = false;
@@ -716,7 +716,7 @@ namespace SkToolbox
             if (stylesReady && Mathf.Abs(alpha - stylesAlpha) < 0.001f) return;
             stylesAlpha = alpha;
 
-            // Speelo's Menu: opacity can be dragged live in a config manager, which would rebuild these every frame.
+            // Speelo's Toolbox: opacity can be dragged live in a config manager, which would rebuild these every frame.
             // HideAndDontSave textures are never collected on their own, so release the previous set first.
             ReleaseTextures();
 

@@ -9,20 +9,20 @@ namespace SkToolbox
     [BepInPlugin(GUID, MODNAME, VERSION)]
     public class SkBepInExLoader : BaseUnityPlugin
     {
-        // Speelo's Menu: a fork of Skrip's SkToolbox for Valheim 1.0. Distinct GUID so it never
+        // Speelo's Toolbox: a fork of Skrip's SkToolbox for Valheim 1.0. Distinct GUID so it never
         // collides with the original (deprecated) package if both end up in a profile.
         public const string
-            MODNAME = "SpeelosMenu",
-            DISPLAYNAME = "Speelo's Menu",
+            MODNAME = "SpeelosToolbox",
+            DISPLAYNAME = "Speelo's Toolbox",
             AUTHOR = "Speelo",
             ORIGINAL_AUTHOR = "Skrip",
-            GUID = "com.speelo.speelosmenu",
+            GUID = "com.speelo.speelostoolbox",
             VERSION = "1.0.0";
 
         private void Start()
         {
             InitConfig();
-            // Speelo's Menu: flip the achievement bypass as early as possible, before the player can spawn anything.
+            // Speelo's Toolbox: flip the achievement bypass as early as possible, before the player can spawn anything.
             SkCommandPatcher.ApplyAchievementBypass();
 
             base.transform.parent = null;
@@ -51,13 +51,13 @@ namespace SkToolbox
                 SkConfigEntry.CScrollableLimit = Config.Bind("0 - General", "ConsoleScrollableLimit", 500
                     , "Maximum number of lines to store in the console. Game default = 30 (lol)");
                 SkConfigEntry.CConsoleAutoComplete = Config.Bind("0 - General", "AutoComplete", true
-                    , "Press tab to auto-complete Speelo's Menu commands if you have partially typed a command.");
+                    , "Press tab to auto-complete Speelo's Toolbox commands if you have partially typed a command.");
                 SkConfigEntry.CAllowChatCommandInput = Config.Bind("0 - General", "AllowChatCommandInput", true
                     , "Toggle this if you want to allow or disable the entry of commands in the chat. If this is disabled, you can only input commands into the console.");
                 SkConfigEntry.CAllowPublicChatOutput = Config.Bind("0 - General", "AllowPublicResponse", true
                     , "Toggle this to allow the mod to respond publicly with certain commands, when entered into chat." +
                     "\nThe /portal command for example, if used in chat and this is true, others nearby will be able to see the response." +
-                    "\nNOTE: If you see a response from your name, it is shown publicly and everyone can see it. If it is a response from (Speelo's Menu), only you see it.");
+                    "\nNOTE: If you see a response from your name, it is shown publicly and everyone can see it. If it is a response from (Speelo's Toolbox), only you see it.");
                 SkConfigEntry.CAllowChatOutput = Config.Bind("0 - General", "AllowResponseInChat", true
                     , "Toggle this to allow the mod to show output in the chat. If this is disabled, the mod will not output to the chat at all, publicly or not.");
                 SkConfigEntry.CAllowExecuteOnClear = Config.Bind("0 - General", "AllowExecuteOnClear", false

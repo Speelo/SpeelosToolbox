@@ -89,7 +89,7 @@ namespace SkToolbox
 
         public static void Init()
         {
-            SkLoader._SkGameObject = new GameObject("SpeelosMenu");
+            SkLoader._SkGameObject = new GameObject("SpeelosToolbox");
             //SkLoader._SkGameObject.AddComponent<SkConsole>(); // Load the console first so output from the controller can be observed on the following frame
 
             if (InitLogging)
@@ -130,14 +130,14 @@ namespace SkToolbox
 
         public static void CheckForUnknownInstance()
         {
-            var OtherSkToolBoxs = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "SpeelosMenu");
+            var OtherSkToolBoxs = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "SpeelosToolbox");
 
             foreach (var Other in OtherSkToolBoxs)
             {
                 if (Other != SkLoader._SkGameObject)
                 {
                     Destroy(Other);
-                    SkUtilities.Logz(new string[] { "LOADER", "DETECT" }, new string[] { "Other Speelo's Menu instance destroyed." });
+                    SkUtilities.Logz(new string[] { "LOADER", "DETECT" }, new string[] { "Other Speelo's Toolbox instance destroyed." });
                 }
             }
         }

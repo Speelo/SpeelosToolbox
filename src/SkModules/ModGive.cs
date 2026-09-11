@@ -5,7 +5,7 @@ using UnityEngine;
 namespace SkToolbox.SkModules
 {
     /// <summary>
-    /// Speelo's Menu: the Give tab. Shows every item in the game as a grid of icons with a search box and a
+    /// Speelo's Toolbox: the Give tab. Shows every item in the game as a grid of icons with a search box and a
     /// quantity slider, and puts the picked item straight into the player's inventory.
     /// Split out of ModPlayer so it gets its own tab instead of being buried in a submenu.
     /// </summary>
@@ -13,6 +13,7 @@ namespace SkToolbox.SkModules
     {
         private int quantity = 1;
         private List<SkMenuController.SkGridItem> cache;
+        private int cachedFor = 0;
 
         public ModGive() : base()
         {
@@ -35,9 +36,13 @@ namespace SkToolbox.SkModules
         /// <summary>Entry point for the tab. Builds the grid once, then shows it.</summary>
         internal void ShowGrid()
         {
-            if (cache == null || cache.Count == 0)
+            // ObjectDB is rebuilt on every world load, and mods register their items into it, so a cache built
+            // against a previous world would both miss new modded items and hold dead prefab references.
+            int key = ObjectDB.instance != null ? ObjectDB.instance.GetInstanceID() : 0;
+            if (cache == null || cache.Count == 0 || cachedFor != key)
             {
                 cache = BuildItems();
+                cachedFor = key;
             }
             if (cache.Count == 0)
             {

@@ -11,7 +11,7 @@ namespace SkToolbox
 
         private static bool initComplete = false;
 
-        // Speelo's Menu: set by SkMenuController while it polls its own keys, so the menu's toggle key survives the
+        // Speelo's Toolbox: set by SkMenuController while it polls its own keys, so the menu's toggle key survives the
         // input block installed by PatchMenuKeyDown/PatchMenuButtonDown below.
         internal static bool BypassInputBlock = false;
 
@@ -214,7 +214,7 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Menu: while the clickable menu is open, free the mouse cursor. GameCamera.UpdateMouseCapture runs every
+        // Speelo's Toolbox: while the clickable menu is open, free the mouse cursor. GameCamera.UpdateMouseCapture runs every
         // frame and re-locks the cursor unless one of the vanilla GUIs is open, so a postfix is the reliable place to override it.
         [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateMouseCapture))]
         private static class PatchMenuMouseCapture
@@ -229,7 +229,7 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Menu: Player.TakeInput gates hovering, "Use", building placement and similar. It does NOT gate
+        // Speelo's Toolbox: Player.TakeInput gates hovering, "Use", building placement and similar. It does NOT gate
         // camera look or attacks - those live on PlayerController, patched below.
         [HarmonyPatch(typeof(Player), "TakeInput")]
         private static class PatchMenuTakeInput
@@ -243,7 +243,7 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Menu: THE fix for "camera still rotates" and "clicking punches".
+        // Speelo's Toolbox: THE fix for "camera still rotates" and "clicking punches".
         // PlayerController has its own private TakeInput(bool look), separate from Player.TakeInput:
         //   FixedUpdate():  if (!TakeInput()) { m_character.SetControls(Vector3.zero, attack: false, ...); return; }
         //   LateUpdate():   if (!TakeInput(look: true) || InInventoryEtc()) { m_character.SetMouseLook(Vector2.zero); return; }
@@ -261,7 +261,7 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Menu: GameCamera.UpdateCamera reads the scroll wheel through its own gate list (which cannot know
+        // Speelo's Toolbox: GameCamera.UpdateCamera reads the scroll wheel through its own gate list (which cannot know
         // about this mod), so scrolling the menu list would also zoom the camera. IMGUI scrolling uses Event.current,
         // not ZInput, so zeroing this only affects the game.
         [HarmonyPatch(typeof(ZInput), nameof(ZInput.GetMouseScrollWheel))]
@@ -276,7 +276,7 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Menu: while the menu owns the screen, swallow keyboard/gamepad "pressed this frame" input so typing in
+        // Speelo's Toolbox: while the menu owns the screen, swallow keyboard/gamepad "pressed this frame" input so typing in
         // the search box cannot swap hotbar slots (HotkeyBar), open the inventory (InventoryGui), open chat (Chat) or
         // open the vanilla pause menu (Menu) - none of those consult PlayerController.TakeInput.
         // SkMenuController sets BypassInputBlock while polling its own toggle key, so the menu can always be closed.
@@ -305,7 +305,7 @@ namespace SkToolbox
         }
 
         // ---------------------------------------------------------------------------------------------------------
-        // Speelo's Menu: keep achievements working while cheating.
+        // Speelo's Toolbox: keep achievements working while cheating.
         //
         // Achievements.CanGetAchievements(cheated) is the single gate every achievement stat goes through:
         //     if (cheated || IsCheatedAtAll()) return PlayerProfile.s_bypassCheatChecks;

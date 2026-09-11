@@ -1,4 +1,4 @@
-# Speelo's Menu
+# Speelo's Toolbox
 
 A clickable in-game cheat menu for Valheim 1.0, plus a console/chat command extender. Press **F6** to open the menu and click what you want. No keybinds to memorise.
 
@@ -35,7 +35,7 @@ Two things it cannot undo: a world whose starting global keys were set outside t
 
 ## Config
 
-`BepInEx/config/com.speelo.speelosmenu.cfg`
+`BepInEx/config/com.speelo.speelostoolbox.cfg`
 
 ## Requirements
 

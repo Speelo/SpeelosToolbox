@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-First release of Speelo's Menu. Forked from Skrip's SkToolbox 1.10.8 (source: derekShaheen/SkToolbox-for-Valheim, GPL-3.0) and rebuilt for Valheim 1.0.7 on BepInExPack_Valheim 5.4.2350.
+First release of Speelo's Toolbox. Forked from Skrip's SkToolbox 1.10.8 (source: derekShaheen/SkToolbox-for-Valheim, GPL-3.0) and rebuilt for Valheim 1.0.7 on BepInExPack_Valheim 5.4.2350.
 
 ### New
 - Clickable menu. F6 opens it (Escape closes it), categories on the left, actions on the right, search box for long lists. The old NumPad navigation and `/alt` are gone.
