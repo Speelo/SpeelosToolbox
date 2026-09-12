@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+### Fixed
+
+- **God mode now blocks damage.** Valheim's own god mode never granted immunity: `Character.ApplyDamage` subtracts the damage first and only rescues you at the moment a hit would kill you, clamping health to 1. You could not die, but your health bar still drained and never recovered. Damage aimed at you while god mode is active is now discarded before it lands, covering ordinary hits, attack recoil, and the burning, poison and smoke effects. Set `GodModeBlocksDamage` to false in the config for Valheim's unmodified behaviour.
+- Adapted to Valheim build 25253764, which turned `PlayerProfile.s_bypassCheatChecks` from a writable field into a read-only property. The achievement bypass patches the property getter instead. Every other patch target was re-verified against the new assemblies and is unchanged.
+- The Give tab rebuilds its item list when the game swaps its item database, so a second world no longer shows the first world's items.
+
 ## 1.0.0
 
 First release. Forked from Skrip's SkToolbox 1.10.8 (source: derekShaheen/SkToolbox-for-Valheim, GPL-3.0), which was last updated for Valheim 0.217.24, and rebuilt for Valheim 1.0.7 on BepInExPack_Valheim 5.4.2350.

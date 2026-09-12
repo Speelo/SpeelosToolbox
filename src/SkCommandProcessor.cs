@@ -694,7 +694,9 @@ namespace SkToolbox
                     }
                     godEnabled = !Player.m_localPlayer.InGodMode(); // Player.cs:4470
                     Player.m_localPlayer.SetGodMode(godEnabled);    // Player.cs:4465
-                    PrintOut("God toggled! (" + godEnabled.ToString() + ")");
+                    PrintOut("Godmode " + (godEnabled ? "ON" : "OFF")
+                        + (godEnabled && (SkConfigEntry.CGodModeBlocksDamage == null || SkConfigEntry.CGodModeBlocksDamage.Value)
+                           ? " - damage is blocked outright." : "."));
                 });
                 new Terminal.ConsoleCommand("/clearinventory", "Removes all items from your inventory. There is no confirmation, be careful. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {

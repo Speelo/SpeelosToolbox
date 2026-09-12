@@ -374,6 +374,38 @@ namespace SkToolbox
             }
         }
 
+        // ---------------------------------------------------------------------------------------------------------
+        // Speelo's Toolbox: make god mode actually block damage.
+        //
+        // Valheim's god mode does not grant immunity. Character.ApplyDamage subtracts the damage first and only
+        // then checks it:
+        //     health -= totalDamage2;
+        //     if (health <= 0f && (InGodMode() || InGhostMode())) health = 1f;
+        // So you cannot die, but every hit still drains your health bar, which is not what "god mode" implies.
+        //
+        // ApplyDamage is the common path for every damage source: ordinary hits (Character.Damage), attack recoil,
+        // and the burning, poison and smoke status effects. Skipping it for the local player while god mode is on
+        // discards the hit before any health is lost.
+        // ---------------------------------------------------------------------------------------------------------
+        [HarmonyPatch(typeof(Character), nameof(Character.ApplyDamage))]
+        private static class PatchGodModeBlocksDamage
+        {
+            private static bool Prefix(Character __instance)
+            {
+                if (Configuration.SkConfigEntry.CGodModeBlocksDamage != null
+                    && !Configuration.SkConfigEntry.CGodModeBlocksDamage.Value)
+                {
+                    return true; // player asked for Valheim's unmodified behaviour
+                }
+                Player local = Player.m_localPlayer;
+                if (local != null && (object)__instance == (object)local && local.InGodMode())
+                {
+                    return false; // swallow the hit entirely
+                }
+                return true;
+            }
+        }
+
         // Belt and braces: force the gate open even if something else resets the static at runtime.
         [HarmonyPatch(typeof(Achievements), nameof(Achievements.CanGetAchievements), new Type[] { typeof(bool) })]
         private static class PatchCanGetAchievements

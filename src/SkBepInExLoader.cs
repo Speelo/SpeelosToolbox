@@ -17,7 +17,7 @@ namespace SkToolbox
             AUTHOR = "Speelo",
             ORIGINAL_AUTHOR = "Skrip",
             GUID = "com.speelo.speelostoolbox",
-            VERSION = "1.0.0";
+            VERSION = "1.0.1";
 
         private void Start()
         {
@@ -68,6 +68,13 @@ namespace SkToolbox
                     "\nThis flips the game's own PlayerProfile.s_bypassCheatChecks switch, which every cheat check reads, so progress keeps counting." +
                     "\nIt also stops cheat commands from permanently flagging the character, and clears that flag if it was already set." +
                     "\nSet to false to let Valheim disable achievements normally.");
+                SkConfigEntry.CGodModeBlocksDamage = Config.Bind("0 - General", "GodModeBlocksDamage", true
+                    , "Make god mode block damage outright." +
+                    "\nValheim's own god mode does not stop damage: it subtracts health as normal and only rescues you at" +
+                    " the moment the hit would kill you, clamping health to 1. So your health bar still drains." +
+                    "\nWith this on, any damage aimed at you while god mode is active is discarded before it lands," +
+                    " including fire, poison and smoke." +
+                    "\nSet to false for Valheim's unmodified behaviour.");
                 SkConfigEntry.COpenConsoleWithSlash = Config.Bind("0 - General", "OpenConsoleWithSlash", false
                     , "Toggle this to enable the ability to open the console with the slash (/) button." +
                     "\nThis option takes precedence over OpenChatWithSlash if both are true.");

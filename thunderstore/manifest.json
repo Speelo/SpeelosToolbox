@@ -1,6 +1,6 @@
 {
   "name": "SpeelosToolbox",
-  "version_number": "1.0.0",
+  "version_number": "1.0.1",
   "website_url": "https://github.com/Speelo/SpeelosToolbox",
   "description": "Clickable in-game cheat menu (F6) plus console/chat commands for Valheim 1.0. A maintained fork of Skrip's SkToolbox, rebuilt for 1.0 with a mouse-driven UI.",
   "dependencies": [
