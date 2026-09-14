@@ -17,7 +17,7 @@ namespace SkToolbox
             AUTHOR = "Speelo",
             ORIGINAL_AUTHOR = "Skrip",
             GUID = "com.speelo.speelostoolbox",
-            VERSION = "1.0.1";
+            VERSION = "1.1.0";
 
         private void Start()
         {

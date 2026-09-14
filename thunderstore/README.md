@@ -10,12 +10,17 @@ Use discretion in multiplayer. These commands change your character and the worl
 
 **F6** opens and closes it, **Escape** closes it. The key is rebindable with `MenuToggleKey` in the config. F6 is the default because Valheim and Steam both use F11 and F12 for screenshots, F5 is the game console, and F9 cycles the controller layout.
 
-Four tabs across the top:
+Five tabs across the top. Hovering anything shows what it does next to the cursor.
 
-- **Player** - one-click food, healing, repair, taming, and toggles for god mode, flying, no-cost building, build anywhere, infinite stamina, enemy detection and coordinates. Toggles light up with a green outline while they are on, read from live game state rather than remembered, so they stay correct even when you use Valheim's own hotkeys.
+- **Player** - grouped into Character, Cheats and Info. One-click food, healing, repair, skills, puke, inventory size and stats; toggles for god mode, flying, no-cost building, build anywhere, infinite stamina and taming; status effects; and readouts for position, portals, coordinates and nearby enemies. Toggles light up with a green outline while they are on, read from live game state rather than remembered, so they stay correct even when you use Valheim's own hotkeys.
 - **Give** - every item in the game as a grid of icons, with a search box and a quantity slider. Items go straight into your inventory. Modded items appear automatically.
-- **World** - terrain tools with radius and height sliders, plus weather, time of day, wind, events, map reveal and reset, portal list, drop cleanup and the world seed.
-- **Console** - reload or unload the toolbox, open the log folder.
+- **Spawn** - every creature in the game as a grid, with sliders for how many and what star level, and a switch to spawn them tamed.
+- **World** - grouped into Terrain, Time & Weather, Rules, Progression, Travel, Cleanup and Server. Terrain tools with radius and height sliders; weather, time, wind and raids; difficulty, world modifiers and presets; boss and world keys; teleporting and map search; cleanup commands; and kick, ban and ping for servers.
+- **System** - display settings (field of view, frame limit, detail distance, snow, free fly camera, debug mode), and the toolbox itself: reload, unload, open the log folder.
+
+Anything that needs a value first opens a small form inside the menu, with a search where the list is long. The commands that change the world for everyone ask for a confirmation before they run.
+
+Every button's hover tip also says who a click affects, because Valheim's split between local and shared commands is not guessable from their names. See below.
 
 While the menu is open the mouse is freed and the game ignores player input. The camera stops turning, clicks never swing your weapon, and typing in a search box will not swap hotbar slots or open the inventory.
 
@@ -23,13 +28,28 @@ While the menu is open the mouse is freed and the game ignores player input. The
 
 The Player tab has four one-click buttons that fill all three food slots: best health, best stamina, best eitr, and a balanced option that takes the best of each. Hover a button to see exactly which foods it will eat.
 
+## Multiplayer and dedicated servers
+
+Hover any button and the tip ends with one of these:
+
+- **(client)** - changes nothing for anyone else.
+- **(server)** - changes the world for everyone on it.
+- **(server), needs you to be admin** - sent to the server to run there, which means your ID has to be in its `adminlist.txt`.
+- **(host only)** - does nothing unless you are the one running the world.
+
+On a dedicated server the world keys, world modifiers and presets, save, kick, ban and unban are forwarded to the server and refused unless you are an admin there. Sleep, Skip Time, Difficulty and List Keys are forwarded as well, but the server additionally wants `devcommands` typed into its own console before it will accept them.
+
+Weather, time of day and wind only ever change your own game, on any setup, including a world you host yourself. They set the renderer's override rather than the world's clock.
+
+Terrain edits, spawned creatures, taming, No Portals and the cleanup buttons write shared world state and need no admin at all, so they land on everyone whether or not you are running the server. Worth knowing before you click one on someone else's world.
+
 ## Console and chat commands
 
 Open the console with F5, which this mod enables for you, and type `/?` for the full list. Most commands also work in chat with a `/` prefix.
 
 Player: `/god` `/ghost` `/fly` `/heal` `/infstam` `/nocost` `/nores` `/nosup` `/repair` `/clearinventory` `/give` `/set` `/tame` `/killall` `/tp` `/coords` `/findtomb` `/farinteract` `/imacheater`
 
-World: `/spawn` `/spawntamed` `/env` `/tod` `/wind` `/resetwind` `/event` `/randomevent` `/stopevent` `/tr` `/td` `/tl` `/tu` `/optterrain` `/removedrops` `/portals` `/revealmap` `/resetmap` `/seed` `/whois` `/detect`
+World: `/spawn` `/spawntamed` `/env` `/tod` `/wind` `/resetwind` `/stopevent` `/tr` `/td` `/tl` `/tu` `/optterrain` `/removedrops` `/portals` `/revealmap` `/resetmap` `/seed` `/whois` `/detect`
 
 Console: `/?` `/echo` `/clear` `/console` `/listitems` `/listprefabs` `/listicons` `/listskills` `/q`
 

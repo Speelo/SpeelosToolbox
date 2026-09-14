@@ -50,6 +50,7 @@ namespace SkToolbox
             public Vector2 Scroll;
             public string Filter = "";
             public List<SkMenuSlider> Sliders;
+            public List<SkMenuToggle> Toggles;
             public List<SkGridItem> Grid;          // when set, this level draws as an icon grid
             public List<SkGridItem> GridFiltered;  // cached result of Filter, rebuilt only when Filter changes
             public string GridFilterKey;
@@ -57,6 +58,13 @@ namespace SkToolbox
         }
 
         /// <summary>One cell of an icon grid, e.g. an item in the Give tab or an action in the Player tab.</summary>
+        /// <summary>
+        /// Who a button actually affects once clicked. Valheim splits console commands between things that only
+        /// touch your own game and things that write shared world state, and the split is not guessable from the
+        /// name, so every cell says which it is on its hover tip.
+        /// </summary>
+        public enum SkScope { Unset, Client, Server, Admin, HostOnly }
+
         public class SkGridItem
         {
             public string Name;          // prefab name, passed to OnClick
@@ -68,6 +76,140 @@ namespace SkToolbox
             /// <summary>Optional live predicate. When it returns true the cell is outlined as "on".
             /// Evaluated every frame, so a toggle lights up without rebuilding the grid.</summary>
             public Func<bool> IsOn;
+
+            /// <summary>Optional group heading. Cells sharing one are drawn together inside a labelled box,
+            /// in the order the sections first appear.</summary>
+            public string Section;
+
+            /// <summary>Who this affects. Appended to the hover tip as a short coloured marker.</summary>
+            public SkScope Scope = SkScope.Unset;
+
+            private string hoverCache;
+
+            /// <summary>The tip plus its scope marker. Built once, since tips never change after the cell is made.</summary>
+            internal string HoverText
+            {
+                get
+                {
+                    if (hoverCache == null)
+                    {
+                        string body = Tip ?? Display ?? Name ?? "";
+                        string mark = ScopeMark(Scope);
+                        hoverCache = mark.Length == 0 ? body : body + "\n" + mark;
+                    }
+                    return hoverCache;
+                }
+            }
+
+            private static string ScopeMark(SkScope scope)
+            {
+                switch (scope)
+                {
+                    case SkScope.Client:
+                        return "<color=#8FB8D8>(client)</color>  <color=#9FB6CC>changes nothing for anyone else</color>";
+                    case SkScope.Server:
+                        return "<color=#E5A959>(server)</color>  <color=#9FB6CC>changes the world for everyone on it</color>";
+                    case SkScope.Admin:
+                        return "<color=#E5A959>(server)</color>  <color=#9FB6CC>sent to the server, which needs you to be admin</color>";
+                    case SkScope.HostOnly:
+                        return "<color=#E08585>(host only)</color>  <color=#9FB6CC>does nothing unless you are running the world</color>";
+                    default:
+                        return "";
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Forms: a modal used by any command that needs parameters before it runs, e.g. picking a skill and a level.
+        // Drawn in place of the tab content rather than over it, because IMGUI delivers clicks to whatever was drawn
+        // first, so an overlay would let clicks fall through to the grid underneath.
+        // ---------------------------------------------------------------------------------------------------------
+
+        public enum SkFieldKind { Choice, IntSlider, Text, Toggle, Info }
+
+        public class SkFormField
+        {
+            public string Id = "";
+            public string Label = "";
+            public SkFieldKind Kind = SkFieldKind.Text;
+
+            /// <summary>Choice: the values handed back, and the text shown for each. Labels may be left empty.</summary>
+            public List<string> Options = new List<string>();
+            public List<string> OptionLabels = new List<string>();
+            public int Selected = 0;
+
+            public int Min = 0;
+            public int Max = 100;
+            public int IntValue = 0;
+            public string TextValue = "";
+            public bool BoolValue = false;
+
+            /// <summary>Choice and Info: height of the scrolling area in pixels. 0 picks a default.</summary>
+            public int Height = 0;
+
+            /// <summary>Choice: live search text. The box appears once the list is long enough to need it.</summary>
+            internal string Filter = "";
+
+            internal Vector2 Scroll;
+
+            public string SelectedOption
+            {
+                get { return (Options != null && Selected >= 0 && Selected < Options.Count) ? Options[Selected] : null; }
+            }
+        }
+
+        public class SkFormAction
+        {
+            public string Label = "Accept";
+            public Action<SkForm> Run;
+        }
+
+        public class SkForm
+        {
+            public string Title = "";
+            public string Note = "";
+            public List<SkFormField> Fields = new List<SkFormField>();
+            public List<SkFormAction> Actions = new List<SkFormAction>();
+
+            /// <summary>
+            /// Optional gate run before any action. Returning a message refuses the action and keeps the form open
+            /// with that message shown, which is how the dangerous commands ask for a confirmation tick.
+            /// </summary>
+            public Func<SkForm, string> Validate;
+
+            internal string Error;
+
+            public SkFormField Field(string id)
+            {
+                foreach (SkFormField field in Fields)
+                {
+                    if (field.Id == id) return field;
+                }
+                return null;
+            }
+        }
+
+        private SkForm activeForm;
+
+        /// <summary>Opens a modal form. It replaces the tab content until an action runs or it is cancelled.</summary>
+        public void ShowForm(SkForm form)
+        {
+            if (form == null) return;
+            activeForm = form;
+            menuOpen = true;
+        }
+
+        public void CloseForm()
+        {
+            activeForm = null;
+        }
+
+        /// <summary>A checkbox drawn with the sliders, e.g. "Spawn tamed".</summary>
+        public class SkMenuToggle
+        {
+            public string Label = "Toggle";
+            public Func<bool> Get;
+            public Action<bool> Set;
         }
 
         /// <summary>A numeric slider drawn under the search box of a menu level, e.g. the Give Item quantity.</summary>
@@ -82,13 +224,13 @@ namespace SkToolbox
 
         // ---- window / styles ----
         private const int WindowId = 49000;
-        private Rect windowRect = new Rect(24f, 80f, 640f, 560f);
+        private Rect windowRect = new Rect(24f, 80f, 740f, 580f);
         private bool windowPlaced = false;
         private bool stylesReady = false;
         private float stylesAlpha = -1f;
         private GUIStyle styleWindow, styleItem, styleHeader, styleTip, styleSmall, styleBack, styleFilter;
-        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell;
-        private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite;
+        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell, styleSectionBox, styleSectionHeader, styleTooltip, styleError;
+        private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip;
 
         private static float ConfiguredOpacity =>
             SkConfigEntry.OMenuOpacity == null ? 0.96f : Mathf.Clamp(SkConfigEntry.OMenuOpacity.Value, 0.25f, 1f);
@@ -231,6 +373,7 @@ namespace SkToolbox
         public void CloseMenu()
         {
             menuOpen = false;
+            activeForm = null;
         }
 
         // ------------------------------------------------------------------ navigation
@@ -405,6 +548,29 @@ namespace SkToolbox
                 updated = Mathf.Clamp(updated, sl.Min, sl.Max);
                 if (updated != current) sl.Set(updated);
             }
+
+            List<SkMenuToggle> toggles = frames[frames.Count - 1].Toggles;
+            if (toggles != null)
+            {
+                foreach (SkMenuToggle tg in toggles)
+                {
+                    if (tg == null || tg.Get == null || tg.Set == null) continue;
+                    bool was = tg.Get();
+                    // Drawn as a button with explicit state rather than GUILayout.Toggle: a Toggle needs a style
+                    // carrying checkbox art for its on and off states, and this menu's flat styles have none, so
+                    // the two states looked identical. This also matches the [ON]/[OFF] used elsewhere.
+                    GUILayout.BeginHorizontal();
+                    string label = tg.Label + "   " + (was ? "<color=#7CFC00>[ON]</color>" : "<color=#FF8080>[OFF]</color>");
+                    bool clicked = GUILayout.Button(new GUIContent(label, tg.Label), styleBack, GUILayout.Width(190f));
+                    if (Event.current.type == EventType.Repaint && was)
+                    {
+                        DrawOutline(GUILayoutUtility.GetLastRect(), OnColor, 2f);
+                    }
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    if (clicked) tg.Set(!was);
+                }
+            }
         }
 
         /// <summary>The scrolling list of the current level, honouring the search box.</summary>
@@ -491,6 +657,19 @@ namespace SkToolbox
             int columns = Mathf.Max(1, Mathf.FloorToInt(available / step));
             int rows = Mathf.CeilToInt(shown.Count / (float)columns);
 
+            // A grid whose cells carry section names is drawn as labelled boxes instead. These grids are small
+            // (the Player tab), so they skip the row virtualisation the big item and creature grids need.
+            bool sectioned = false;
+            foreach (SkGridItem probe in shown)
+            {
+                if (probe != null && !string.IsNullOrEmpty(probe.Section)) { sectioned = true; break; }
+            }
+            if (sectioned)
+            {
+                DrawSectionedGrid(frame, shown, columns);
+                return;
+            }
+
             frame.Scroll = GUILayout.BeginScrollView(frame.Scroll, false, true);
 
             if (shown.Count == 0)
@@ -519,7 +698,7 @@ namespace SkToolbox
                     }
                     SkGridItem cell = shown[index];
                     string caption = cell.Icon == null ? ShortLabel(cell.Display ?? cell.Name) : "";
-                    if (GUILayout.Button(new GUIContent(caption, cell.Tip ?? cell.Display ?? cell.Name),
+                    if (GUILayout.Button(new GUIContent(caption, cell.HoverText),
                                          styleGridCell, GUILayout.Width(GridCell), GUILayout.Height(GridCell)))
                     {
                         SkGridItem captured = cell;
@@ -545,6 +724,75 @@ namespace SkToolbox
             if (lastRow < rows - 1) GUILayout.Space((rows - 1 - lastRow) * step);
 
             GUILayout.EndScrollView();
+        }
+
+        /// <summary>Grid split into labelled boxes, one per section, in the order the sections first appear.</summary>
+        private void DrawSectionedGrid(MenuFrame frame, List<SkGridItem> shown, int columns)
+        {
+            List<string> order = new List<string>();
+            Dictionary<string, List<SkGridItem>> groups = new Dictionary<string, List<SkGridItem>>();
+            foreach (SkGridItem cell in shown)
+            {
+                if (cell == null) continue;
+                string section = string.IsNullOrEmpty(cell.Section) ? "Other" : cell.Section;
+                if (!groups.ContainsKey(section))
+                {
+                    groups[section] = new List<SkGridItem>();
+                    order.Add(section);
+                }
+                groups[section].Add(cell);
+            }
+
+            frame.Scroll = GUILayout.BeginScrollView(frame.Scroll, false, true);
+            foreach (string section in order)
+            {
+                List<SkGridItem> cells = groups[section];
+                GUILayout.BeginVertical(styleSectionBox);
+                GUILayout.Label(section, styleSectionHeader);
+
+                for (int i = 0; i < cells.Count; i += columns)
+                {
+                    GUILayout.BeginHorizontal();
+                    for (int c = 0; c < columns; c++)
+                    {
+                        int index = i + c;
+                        if (index >= cells.Count)
+                        {
+                            GUILayout.Space(GridCell + GridPad);
+                            continue;
+                        }
+                        DrawGridCell(cells[index]);
+                    }
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.EndVertical();
+            }
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>One grid cell: the button, its icon, and the "on" outline for toggles.</summary>
+        private void DrawGridCell(SkGridItem cell)
+        {
+            string caption = cell.Icon == null ? ShortLabel(cell.Display ?? cell.Name) : "";
+            if (GUILayout.Button(new GUIContent(caption, cell.HoverText),
+                                 styleGridCell, GUILayout.Width(GridCell), GUILayout.Height(GridCell)))
+            {
+                SkGridItem captured = cell;
+                pendingAction = () => InvokeItem(new SkMenuItem(captured.Name, captured.OnClick, captured.Tip));
+            }
+            if (Event.current.type == EventType.Repaint)
+            {
+                Rect cellRect = GUILayoutUtility.GetLastRect();
+                if (cell.Icon != null)
+                {
+                    DrawSprite(cellRect, cell.Icon);
+                }
+                if (cell.IsOn != null && cell.IsOn())
+                {
+                    DrawOutline(cellRect, OnColor, 2f);
+                }
+            }
         }
 
         /// <summary>Draws a sprite inside a rect, honouring its atlas rect so packed sprites are not smeared.</summary>
@@ -581,15 +829,195 @@ namespace SkToolbox
             return text.Length <= 7 ? text : text.Substring(0, 7);
         }
 
-        /// <summary>Hover tip on the left, toggle-key reminder on the right.</summary>
+        /// <summary>Renders the active form: title, one block per field, then its action buttons.</summary>
+        private void DrawForm()
+        {
+            SkForm form = activeForm;
+            GUILayout.Label(form.Title, styleHeader);
+            if (!string.IsNullOrEmpty(form.Note))
+            {
+                GUILayout.Label(form.Note, styleTip);
+            }
+            if (!string.IsNullOrEmpty(form.Error))
+            {
+                GUILayout.Label(form.Error, styleError);
+            }
+            GUILayout.Space(6f);
+
+            foreach (SkFormField field in form.Fields)
+            {
+                if (field == null) continue;
+                GUILayout.BeginVertical(styleSectionBox);
+                GUILayout.Label(field.Label, styleSectionHeader);
+
+                switch (field.Kind)
+                {
+                    case SkFieldKind.Choice:
+                        DrawChoiceField(field);
+                        break;
+
+                    case SkFieldKind.IntSlider:
+                    {
+                        int current = Mathf.Clamp(field.IntValue, field.Min, field.Max);
+                        int updated = current;
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(current.ToString(), styleSmall, GUILayout.Width(42f));
+                        if (GUILayout.Button("-", styleBack, GUILayout.Width(28f))) updated = current - 1;
+                        int rounded = Mathf.RoundToInt(GUILayout.HorizontalSlider(current, field.Min, field.Max, GUILayout.MinWidth(140f)));
+                        if (rounded != current) updated = rounded;
+                        if (GUILayout.Button("+", styleBack, GUILayout.Width(28f))) updated = current + 1;
+                        GUILayout.EndHorizontal();
+                        field.IntValue = Mathf.Clamp(updated, field.Min, field.Max);
+                        break;
+                    }
+
+                    case SkFieldKind.Text:
+                        field.TextValue = GUILayout.TextField(field.TextValue ?? "", styleFilter);
+                        break;
+
+                    case SkFieldKind.Info:
+                        DrawInfoField(field);
+                        break;
+
+                    case SkFieldKind.Toggle:
+                    {
+                        string label = (field.BoolValue ? "<color=#7CFC00>[ON]</color>" : "<color=#FF8080>[OFF]</color>");
+                        GUILayout.BeginHorizontal();
+                        if (GUILayout.Button(label, styleBack, GUILayout.Width(90f))) field.BoolValue = !field.BoolValue;
+                        GUILayout.FlexibleSpace();
+                        GUILayout.EndHorizontal();
+                        break;
+                    }
+                }
+                GUILayout.EndVertical();
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            foreach (SkFormAction action in form.Actions)
+            {
+                if (action == null || action.Run == null) continue;
+                if (GUILayout.Button(action.Label, styleItem, GUILayout.Width(150f), GUILayout.Height(28f)))
+                {
+                    SkFormAction captured = action;
+                    SkForm capturedForm = form;
+                    pendingAction = () =>
+                    {
+                        if (capturedForm.Validate != null)
+                        {
+                            string refused = capturedForm.Validate(capturedForm);
+                            if (!string.IsNullOrEmpty(refused))
+                            {
+                                capturedForm.Error = refused; // stay open so the field can be corrected
+                                return;
+                            }
+                        }
+                        capturedForm.Error = null;
+                        try { captured.Run(capturedForm); }
+                        catch (Exception ex)
+                        {
+                            SkUtilities.Logz(new string[] { "FORM", "ERROR" }, new string[] { ex.Message }, LogType.Error);
+                            SkCommandProcessor.Notify("That failed: " + ex.Message);
+                        }
+                        CloseForm();
+                    };
+                }
+                GUILayout.Space(6f);
+            }
+            GUILayout.FlexibleSpace();
+            // A form with no actions is a readout, so the only way out reads as Close rather than Cancel.
+            if (GUILayout.Button(form.Actions.Count == 0 ? "Close" : "Cancel", styleBack, GUILayout.Width(110f), GUILayout.Height(28f)))
+            {
+                pendingAction = CloseForm;
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// A scrolling list of options, the chosen one highlighted. Long lists get their own search box; it hides
+        /// rows rather than renumbering them, so Selected stays an index into Options.
+        /// </summary>
+        private void DrawChoiceField(SkFormField field)
+        {
+            if (field.Options.Count > FilterThreshold)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Search", styleSmall, GUILayout.Width(52f));
+                field.Filter = GUILayout.TextField(field.Filter ?? "", styleFilter);
+                if (GUILayout.Button("x", styleBack, GUILayout.Width(28f))) field.Filter = "";
+                GUILayout.EndHorizontal();
+            }
+
+            string needle = (field.Filter ?? "").Trim();
+            field.Scroll = GUILayout.BeginScrollView(field.Scroll, false, true, GUILayout.Height(field.Height > 0 ? field.Height : 196));
+            int shown = 0;
+            for (int i = 0; i < field.Options.Count; i++)
+            {
+                string label = (field.OptionLabels != null && i < field.OptionLabels.Count && !string.IsNullOrEmpty(field.OptionLabels[i]))
+                    ? field.OptionLabels[i]
+                    : field.Options[i];
+                if (needle.Length > 0
+                    && field.Options[i].IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0
+                    && label.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+                shown++;
+                bool chosen = i == field.Selected;
+                if (GUILayout.Button(label, chosen ? styleTabOn : styleItem))
+                {
+                    field.Selected = i;
+                }
+            }
+            if (shown == 0) GUILayout.Label("Nothing matches that.", styleTip);
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Read-only panel, used to show what a console command printed without opening the console.</summary>
+        private void DrawInfoField(SkFormField field)
+        {
+            field.Scroll = GUILayout.BeginScrollView(field.Scroll, false, true, GUILayout.Height(field.Height > 0 ? field.Height : 260));
+            GUILayout.Label(field.TextValue ?? "", styleTip);
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Toggle-key reminder. Hover text moved to the cursor, see DrawCursorTooltip.</summary>
         private void DrawFooter()
         {
-            if (Event.current.type == EventType.Repaint) hoverTip = GUI.tooltip ?? "";
             GUILayout.BeginHorizontal();
-            GUILayout.Label(string.IsNullOrEmpty(hoverTip) ? " " : hoverTip, styleTip, GUILayout.Height(34f));
             GUILayout.FlexibleSpace();
-            GUILayout.Label(toggleKey + " opens / closes", styleSmall, GUILayout.Height(34f));
+            GUILayout.Label(toggleKey + " opens / closes, Escape closes", styleSmall, GUILayout.Height(18f));
             GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Hover text as a floating box next to the cursor. GUI.tooltip holds whatever control the mouse is over,
+        /// but it is only meaningful during the repaint pass, and it has to be drawn after everything else or the
+        /// controls below would paint over it. Flips to the other side of the cursor near an edge so it never
+        /// spills outside the window, where it would be clipped.
+        /// </summary>
+        private void DrawCursorTooltip()
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            hoverTip = GUI.tooltip ?? "";
+            if (string.IsNullOrEmpty(hoverTip)) return;
+
+            GUIContent content = new GUIContent(hoverTip);
+            float maxWidth = Mathf.Min(320f, Mathf.Max(120f, windowRect.width - 32f));
+            float width = Mathf.Min(maxWidth, styleTooltip.CalcSize(content).x);
+            float height = styleTooltip.CalcHeight(content, width);
+
+            Vector2 mouse = Event.current.mousePosition;
+            float x = mouse.x + 16f;
+            float y = mouse.y + 18f;
+            if (x + width > windowRect.width - 6f) x = mouse.x - width - 10f;
+            if (y + height > windowRect.height - 6f) y = mouse.y - height - 10f;
+            x = Mathf.Max(6f, x);
+            y = Mathf.Max(6f, y);
+
+            Rect area = new Rect(x, y, width, height);
+            GUI.Label(area, content, styleTooltip);
+            DrawOutline(area, new Color(0.35f, 0.42f, 0.55f), 1f);
         }
 
         /// <summary>Finds the item's current text after a refresh, so a toggle reports its new [ON]/[OFF] state.</summary>
@@ -620,11 +1048,11 @@ namespace SkToolbox
             RequestGridMenu(grid, slider == null ? null : new List<SkMenuSlider> { slider }, title, showFilter);
         }
 
-        /// <summary>Grid level with any number of sliders stacked above it.</summary>
-        public void RequestGridMenu(List<SkGridItem> grid, List<SkMenuSlider> sliders, string title = "Items", bool showFilter = true)
+        /// <summary>Grid level with any number of sliders and toggles stacked above it.</summary>
+        public void RequestGridMenu(List<SkGridItem> grid, List<SkMenuSlider> sliders, string title = "Items", bool showFilter = true, List<SkMenuToggle> toggles = null)
         {
             if (grid == null || grid.Count == 0) return;
-            frames.Add(new MenuFrame { Title = title, Items = null, Grid = grid, Sliders = sliders, ShowFilter = showFilter });
+            frames.Add(new MenuFrame { Title = title, Items = null, Grid = grid, Sliders = sliders, ShowFilter = showFilter, Toggles = toggles });
             pendingSlider = null;
             menuOpen = true;
         }
@@ -745,12 +1173,15 @@ namespace SkToolbox
             styleItem.margin = new RectOffset(0, 0, 1, 1);
             Paint(styleItem, texItem, texItemHover, texItemActive, text);
 
-            styleBack = new GUIStyle(styleItem) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fixedHeight = 25f };
+            styleBack = new GUIStyle(styleItem) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fixedHeight = 25f, richText = true };
 
             styleHeader = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
             styleHeader.normal.textColor = text;
 
             styleTip = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
+
+            styleError = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, fontStyle = FontStyle.Bold };
+            styleError.normal.textColor = new Color(1f, 0.55f, 0.45f);
             styleTip.normal.textColor = new Color(0.95f, 0.90f, 0.65f);
 
             styleSmall = new GUIStyle(GUI.skin.label) { fontSize = 12 };
@@ -781,6 +1212,25 @@ namespace SkToolbox
             styleGridCell.margin = new RectOffset(0, (int)GridPad, (int)GridPad, 0);
             Paint(styleGridCell, texItem, texItemHover, texItemActive, textDim);
 
+            // Floating tooltip that follows the cursor. Fully opaque regardless of MenuOpacity, since it sits over
+            // the menu's own content and has to stay readable.
+            styleTooltip = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, richText = true };
+            texTooltip = MakeTex(new Color(0.03f, 0.04f, 0.06f, 0.98f));
+            styleTooltip.normal.background = texTooltip;
+            styleTooltip.border = new RectOffset(0, 0, 0, 0);
+            styleTooltip.padding = new RectOffset(8, 8, 6, 6);
+            styleTooltip.normal.textColor = new Color(0.96f, 0.93f, 0.72f);
+
+            styleSectionBox = new GUIStyle(GUI.skin.box);
+            styleSectionBox.normal.background = texPanel;
+            styleSectionBox.border = new RectOffset(0, 0, 0, 0);
+            styleSectionBox.padding = new RectOffset(8, 8, 6, 8);
+            styleSectionBox.margin = new RectOffset(0, 0, 0, 8);
+
+            styleSectionHeader = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold };
+            styleSectionHeader.normal.textColor = new Color(0.62f, 0.78f, 0.95f);
+            styleSectionHeader.padding = new RectOffset(2, 2, 0, 4);
+
             styleClose = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleCenter, fontSize = 14, fontStyle = FontStyle.Bold };
             styleClose.border = new RectOffset(0, 0, 0, 0);
             styleClose.padding = new RectOffset(0, 0, 0, 0);
@@ -791,14 +1241,14 @@ namespace SkToolbox
 
         private static void ReleaseTextures()
         {
-            foreach (Texture2D tex in new Texture2D[] { texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite })
+            foreach (Texture2D tex in new Texture2D[] { texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip })
             {
                 if (tex != null)
                 {
                     UnityEngine.Object.DestroyImmediate(tex);
                 }
             }
-            texWindow = texPanel = texItem = texItemHover = texItemActive = texAccent = texWhite = null;
+            texWindow = texPanel = texItem = texItemHover = texItemActive = texAccent = texWhite = texTooltip = null;
         }
 
         private static void Paint(GUIStyle style, Texture2D normal, Texture2D hover, Texture2D active, Color text)
@@ -853,15 +1303,34 @@ namespace SkToolbox
         {
             try
             {
+                // Unity never clears GUI.tooltip between frames: it is only written when the mouse is over a
+                // control that has one. So hovering a control with no tooltip, or nothing at all, left the previous
+                // one on screen. Clearing it here means anything still set by the end of the pass is genuinely
+                // what the cursor is over now.
+                if (Event.current.type == EventType.Repaint)
+                {
+                    GUI.tooltip = string.Empty;
+                }
+
                 // Layout, top to bottom. Each section is its own method so the arrangement can be changed
                 // without touching the others.
                 DrawCloseButton();
+
+                if (activeForm != null)
+                {
+                    DrawForm();
+                    DrawCursorTooltip();
+                    GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));
+                    return;
+                }
+
                 DrawTabs();
                 DrawFrameHeader();
                 DrawFilterRow();
                 DrawSliderRow();
                 DrawItemList();
                 DrawFooter();
+                DrawCursorTooltip(); // last, so it sits above every other control
 
                 // Everything except the close button's corner drags the window.
                 GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));

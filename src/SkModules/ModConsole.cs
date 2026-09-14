@@ -81,6 +81,171 @@ namespace SkToolbox.SkModules
             MenuOptions = consoleOptMenu;
         }
 
+        // ------------------------------------------------------------------ the System tab
+        //
+        // Everything here sits outside the game world: what the renderer is doing, and the toolbox itself.
+
+        // Nothing on this tab leaves your own machine: the display settings are renderer state and the toolbox
+        // entries only touch the toolbox, so every cell here is marked as client-side.
+        private static SkMenuController.SkGridItem Cell(string section, string label, string tip, Sprite icon, Action run)
+        {
+            return new SkMenuController.SkGridItem
+            {
+                Name = label,
+                Display = label,
+                Tip = label + "  -  " + tip,
+                Icon = icon,
+                Section = section,
+                Scope = SkMenuController.SkScope.Client,
+                OnClick = (string ignored) => run(),
+            };
+        }
+
+        internal void ShowGrid()
+        {
+            List<SkMenuController.SkGridItem> grid = new List<SkMenuController.SkGridItem>
+            {
+                Cell("Display", "Field of View", "Widen or narrow the camera", SkIcons.First("Torch"), ShowFovForm),
+                Cell("Display", "Frame Limit", "Cap the frame rate", SkIcons.First("Feathers"), ShowFpsForm),
+                Cell("Display", "Detail Distance", "How far away the game keeps full detail", SkIcons.First("Stone", "Wood"), ShowLodForm),
+                Cell("Display", "Snow Buildup", "Add or clear snow on nearby building pieces", SkIcons.First("FreezeGland", "WolfPelt"), ShowSnowForm),
+                Cell("Display", "Free Fly Camera", "Detach the camera for screenshots. Run it again to come back",
+                     SkIcons.First("FeatherCape", "Feathers"), () => SkRun.CmdNotify("freefly", "Toggled the free fly camera.")),
+                new SkMenuController.SkGridItem
+                {
+                    Name = "Debug Mode",
+                    Display = "Debug Mode",
+                    Tip = "Debug Mode  -  the game's own developer mode, which some other cheats rely on",
+                    Icon = SkIcons.First("Wishbone"),
+                    Section = "Display",
+                    Scope = SkMenuController.SkScope.Client,
+                    OnClick = (string ignored) => SkRun.CmdNotify("debugmode", "Toggled debug mode."),
+                    IsOn = () => Player.m_debugMode,
+                },
+
+                Cell("Toolbox", "Reload Toolbox", "Unload and load the toolbox again", SkIcons.First("Hammer"), ReloadMenu),
+                Cell("Toolbox", "Unload Toolbox", "Shut the toolbox down until the next launch", SkIcons.First("Flint", "Stone"), UnloadMenu),
+                Cell("Toolbox", "Open Log Folder", "Open the folder holding the log files", SkIcons.First("Coins"), OpenLogFolder),
+            };
+
+            SkMC.RequestGridMenu(grid, (List<SkMenuController.SkMenuSlider>)null, "System", showFilter: false);
+        }
+
+        private void ShowFovForm()
+        {
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Field of View",
+                Note = "The game's default is 65. Higher shows more of the world and feels faster.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "fov", Label = "Degrees", Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 40, Max = 120, IntValue = CurrentFov(),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("fov " + f.Field("fov").IntValue, "Field of view: " + f.Field("fov").IntValue),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Back to 65",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("fov 65", "Field of view back to 65."),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        private static int CurrentFov()
+        {
+            Camera camera = Camera.main;
+            return camera != null ? Mathf.Clamp(Mathf.RoundToInt(camera.fieldOfView), 40, 120) : 65;
+        }
+
+        private void ShowFpsForm()
+        {
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Frame Limit",
+                Note = "Caps the frame rate. This is saved with the graphics settings, the same as changing it in the options screen.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "fps", Label = "Frames per second", Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 30, Max = 360, IntValue = 60,
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("maxfps " + f.Field("fps").IntValue, "Frame limit: " + f.Field("fps").IntValue),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Uncapped",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("maxfps 0", "Frame limit removed."),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        private void ShowLodForm()
+        {
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Detail Distance",
+                Note = "How far away the game keeps full detail. 1 is normal; higher looks better and costs performance.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "bias", Label = "Bias", Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 1, Max = 10, IntValue = Mathf.Clamp(Mathf.RoundToInt(QualitySettings.lodBias), 1, 10),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("lodbias " + f.Field("bias").IntValue, "Detail distance: " + f.Field("bias").IntValue),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        private void ShowSnowForm()
+        {
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Snow Buildup",
+                Note = "Adds or removes snow on every building piece nearby. Adding only affects pieces that can hold snow.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "amount", Label = "Amount %", Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 5, Max = 100, IntValue = 100,
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Add snow",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkRun.Cmd("snow " + Fraction(f.Field("amount").IntValue));
+                    SkCommandProcessor.Notify("Added snow to nearby pieces.");
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Clear snow",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkRun.Cmd("snow -1");
+                    SkCommandProcessor.Notify("Cleared snow from nearby pieces.");
+                },
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>Formats a 0..1 value the way the console expects, regardless of the machine's decimal comma.</summary>
+        private static string Fraction(int percent)
+        {
+            return (percent / 100f).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
 
         public void OpenLogFolder()
         {

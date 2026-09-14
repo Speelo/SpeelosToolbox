@@ -110,6 +110,7 @@ namespace SkToolbox.SkModules
                     Display = display,
                     Icon = icon,
                     Tip = display + "   (" + prefab.name + ")",
+                    Scope = SkMenuController.SkScope.Client,
                     OnClick = Give,
                 });
             }

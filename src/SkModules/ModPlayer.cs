@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using SkToolbox.Utility;
 using UnityEngine;
+using SkScope = SkToolbox.SkMenuController.SkScope;
 
 namespace SkToolbox.SkModules
 {
@@ -67,32 +68,46 @@ namespace SkToolbox.SkModules
             AddFoodCell(grid, "Best Stamina Food", FoodKind.Stamina, null);
             AddFoodCell(grid, "Best Eitr Food", FoodKind.Eitr, null);
             AddFoodCell(grid, "Balanced Food", FoodKind.Balanced, SkIcons.First("Tankard", "BarleyWine"));
+            Action(grid, "Character", "Heal Self", "Restore health and stamina", SkIcons.First("MeadHealthMedium", "MeadHealthMinor", "Honey"), Heal);
+            Action(grid, "Character", "Repair All", "Repair every item you carry", SkIcons.First("Hammer"), RepairAll);
+            Action(grid, "Character", "Skills", "Set or reset a skill level", SkIcons.First("Wishbone", "Coins"), ShowSkillForm);
+            Action(grid, "Character", "Puke", "Empty your stomach, clearing all three food slots", SkIcons.First("Entrails", "RawMeat"),
+                   () => SkRun.CmdNotify("puke", "Stomach emptied."));
+            Action(grid, "Character", "Inventory Size", "Change how many rows your inventory has", SkIcons.First("ArmorLeatherChest", "ArmorRagsChest"),
+                   ShowInventoryForm);
+            Action(grid, "Character", "Stats", "Show what the game has recorded for this character", SkIcons.First("Ruby", "Coins"),
+                   () => SkRun.Show("Player Stats", "stats", "No stats to show yet."));
 
-            Action(grid, "Repair All", "Repair all your items", SkIcons.First("Hammer"), RepairAll);
-            Action(grid, "Heal Self", "Heal yourself", SkIcons.First("MeadHealthMedium", "MeadHealthMinor", "Honey"), Heal);
-            Action(grid, "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame);
-
-            Toggle(grid, "Teleport to Mouse", "Press tilde (~) to teleport", SkIcons.First("SurtlingCore", "Thunderstone"),
-                   ToggleTeleport, () => bTeleport);
-            Toggle(grid, "Build Anywhere", "Remove build restrictions", SkIcons.First("Cultivator", "Hoe"),
-                   ToggleAnywhere, () => SkCommandPatcher.bBuildAnywhere);
-            Toggle(grid, "No Cost Building", "Unlock all pieces and build for free", SkIcons.First("Wood", "Stone"),
-                   ToggleNoCost, () => Player.m_localPlayer != null && Player.m_localPlayer.NoCostCheat());
-            Toggle(grid, "Detect Nearby Enemies", "Range: 20m", SkIcons.First("Wishbone"),
-                   ToggleESPEnemies, () => SkCommandProcessor.bDetectEnemies);
-            Toggle(grid, "Display Coordinates", "Show coords in the top left corner", SkIcons.First("FishingRodFloat", "Thunderstone", "Ruby"),
-                   ToggleCoords, () => SkCommandProcessor.bCoords);
-            Toggle(grid, "Godmode", "Take no damage", SkIcons.First("HelmetOdin", "CapeOdin"),
+            Toggle(grid, "Cheats", "Godmode", "Take no damage", SkIcons.First("HelmetOdin", "CapeOdin"),
                    ToggleGodmode, () => Player.m_localPlayer != null && Player.m_localPlayer.InGodMode());
-            Toggle(grid, "Flying", "Free flight", SkIcons.First("Feathers"),
+            Toggle(grid, "Cheats", "Flying", "Free flight", SkIcons.First("Feathers"),
                    ToggleFlying, () => Player.m_localPlayer != null && Player.m_localPlayer.IsDebugFlying());
-            Toggle(grid, "Infinite Stamina", "Stamina never drains", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
+            Toggle(grid, "Cheats", "Infinite Stamina", "Stamina never drains", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
                    ToggleInfStam, () => SkCommandProcessor.infStamina);
+            Toggle(grid, "Cheats", "No Cost Building", "Unlock all pieces and build for free", SkIcons.First("Wood", "Stone"),
+                   ToggleNoCost, () => Player.m_localPlayer != null && Player.m_localPlayer.NoCostCheat());
+            Toggle(grid, "Cheats", "Build Anywhere", "Remove build restrictions", SkIcons.First("Cultivator", "Hoe"),
+                   ToggleAnywhere, () => SkCommandPatcher.bBuildAnywhere);
+            Action(grid, "Cheats", "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame, SkScope.Server);
+            Action(grid, "Cheats", "Status Effects", "Apply a status effect, or clear the ones you have",
+                   SkIcons.First("MeadFrostResist", "MeadPoisonResist", "MeadHealthMinor"), ShowStatusForm);
+
+            Toggle(grid, "Info", "Teleport to Mouse", "Press tilde (~) to teleport where you look", SkIcons.First("SurtlingCore", "Thunderstone"),
+                   ToggleTeleport, () => bTeleport);
+            Action(grid, "Info", "Portals", "List every portal tag", SkIcons.First("SurtlingCore"),
+                   () => SkCommandProcessor.ProcessCommand("/portals", SkCommandProcessor.LogTo.Chat));
+            Toggle(grid, "Info", "Display Coordinates", "Show coords in the top left corner", SkIcons.First("FishingRodFloat", "Thunderstone", "Ruby"),
+                   ToggleCoords, () => SkCommandProcessor.bCoords);
+            Toggle(grid, "Info", "Detect Nearby Enemies", "Range: 20m", SkIcons.First("Wishbone"),
+                   ToggleESPEnemies, () => SkCommandProcessor.bDetectEnemies);
+            Action(grid, "Info", "Position", "Print your coordinates, zone and distance from the centre", SkIcons.First("Amber", "Coins"),
+                   () => SkRun.Show("Position", "pos", "No position yet."));
 
             return grid;
         }
 
-        private static void Action(List<SkMenuController.SkGridItem> grid, string label, string tip, Sprite icon, System.Action run)
+        private static void Action(List<SkMenuController.SkGridItem> grid, string section, string label, string tip, Sprite icon,
+                                   System.Action run, SkScope scope = SkScope.Client)
         {
             grid.Add(new SkMenuController.SkGridItem
             {
@@ -100,12 +115,14 @@ namespace SkToolbox.SkModules
                 Display = label,
                 Tip = label + "  -  " + tip,
                 Icon = icon,
+                Section = section,
+                Scope = scope,
                 OnClick = (string ignored) => run(),
             });
         }
 
-        private static void Toggle(List<SkMenuController.SkGridItem> grid, string label, string tip, Sprite icon,
-                                   System.Action run, Func<bool> isOn)
+        private static void Toggle(List<SkMenuController.SkGridItem> grid, string section, string label, string tip, Sprite icon,
+                                   System.Action run, Func<bool> isOn, SkScope scope = SkScope.Client)
         {
             grid.Add(new SkMenuController.SkGridItem
             {
@@ -113,9 +130,218 @@ namespace SkToolbox.SkModules
                 Display = label,
                 Tip = label + "  -  " + tip,
                 Icon = icon,
+                Section = section,
+                Scope = scope,
                 OnClick = (string ignored) => run(),
                 IsOn = isOn,
             });
+        }
+
+        // ------------------------------------------------------------------ skills
+
+        /// <summary>
+        /// Skill picker. Levels are shown next to each name so the current state is visible before changing it.
+        /// The game's CheatRaiseSkill adds to a skill and clamps to 0-100, so setting an exact level means raising
+        /// by the difference, which also accepts a negative value.
+        /// </summary>
+        private void ShowSkillForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            SkMenuController.SkFormField picker = new SkMenuController.SkFormField
+            {
+                Id = "skill",
+                Label = "Skill",
+                Kind = SkMenuController.SkFieldKind.Choice,
+            };
+            picker.Options.Add("All");
+            picker.OptionLabels.Add("All skills");
+
+            Skills skills = player.GetSkills();
+            foreach (Skills.SkillType type in Enum.GetValues(typeof(Skills.SkillType)))
+            {
+                if (type == Skills.SkillType.None || type == Skills.SkillType.All) continue;
+                float level = 0f;
+                try { level = skills != null ? skills.GetSkillLevel(type) : 0f; } catch (Exception) { }
+                picker.Options.Add(type.ToString());
+                picker.OptionLabels.Add(type.ToString() + "     <color=#9FB6CC>level " + Mathf.RoundToInt(level) + "</color>");
+            }
+            picker.Selected = 1; // first real skill rather than "All"
+
+            SkMenuController.SkFormField amount = new SkMenuController.SkFormField
+            {
+                Id = "level",
+                Label = "Level to set",
+                Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 0,
+                Max = 100,
+                IntValue = 50,
+            };
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Skills",
+                Note = "Pick a skill, choose a level, then Set. Reset puts it back to zero.",
+            };
+            form.Fields.Add(picker);
+            form.Fields.Add(amount);
+
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Set level",
+                Run = (SkMenuController.SkForm f) => SetSkill(f.Field("skill").SelectedOption, f.Field("level").IntValue),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Reset to zero",
+                Run = (SkMenuController.SkForm f) => ResetSkill(f.Field("skill").SelectedOption),
+            });
+
+            SkMC.ShowForm(form);
+        }
+
+        private static void SetSkill(string name, int target)
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null || string.IsNullOrEmpty(name)) return;
+            Skills skills = player.GetSkills();
+            if (skills == null) return;
+
+            if (name == "All")
+            {
+                foreach (Skills.SkillType type in Enum.GetValues(typeof(Skills.SkillType)))
+                {
+                    if (type == Skills.SkillType.None || type == Skills.SkillType.All) continue;
+                    skills.CheatRaiseSkill(type.ToString(), target - skills.GetSkillLevel(type), false);
+                }
+                SkCommandProcessor.Notify("All skills set to " + target);
+                return;
+            }
+
+            Skills.SkillType chosen;
+            try { chosen = (Skills.SkillType)Enum.Parse(typeof(Skills.SkillType), name, true); }
+            catch (Exception) { SkCommandProcessor.Notify("Unknown skill: " + name); return; }
+
+            skills.CheatRaiseSkill(name, target - skills.GetSkillLevel(chosen), false);
+            SkCommandProcessor.Notify(name + " set to " + target);
+        }
+
+        private static void ResetSkill(string name)
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null || string.IsNullOrEmpty(name)) return;
+            Skills skills = player.GetSkills();
+            if (skills == null) return;
+            skills.CheatResetSkill(name == "All" ? "all" : name);
+            SkCommandProcessor.Notify((name == "All" ? "All skills" : name) + " reset to zero");
+        }
+
+        // ------------------------------------------------------------------ inventory and status
+
+        /// <summary>Inventory rows. The game clamps this to 9 and drops anything that no longer fits.</summary>
+        private void ShowInventoryForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            int rows = 4;
+            try { rows = player.GetInventory().GetHeight(); } catch (Exception) { }
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Inventory Size",
+                Note = "Rows in your inventory. Four is the normal size; shrinking it drops whatever no longer fits.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "rows",
+                Label = "Rows",
+                Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = 1,
+                Max = 9,
+                IntValue = Mathf.Clamp(rows, 1, 9),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) =>
+                    SkRun.CmdNotify("inventorysize " + f.Field("rows").IntValue, "Inventory set to " + f.Field("rows").IntValue + " rows."),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Back to 4",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("inventorysize 4", "Inventory back to 4 rows."),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>Every status effect the game ships, by prefab name, which is what addstatus expects.</summary>
+        private void ShowStatusForm()
+        {
+            ObjectDB db = ObjectDB.instance;
+            List<string> names = new List<string>();
+            if (db != null && db.m_StatusEffects != null)
+            {
+                foreach (StatusEffect effect in db.m_StatusEffects)
+                {
+                    if (effect != null && !string.IsNullOrEmpty(effect.name) && !names.Contains(effect.name))
+                    {
+                        names.Add(effect.name);
+                    }
+                }
+            }
+            if (names.Count == 0)
+            {
+                SkCommandProcessor.Notify("Status effect list is not available yet. Load into a world first.");
+                return;
+            }
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+
+            SkMenuController.SkFormField picker = new SkMenuController.SkFormField
+            {
+                Id = "status",
+                Label = "Status effect",
+                Kind = SkMenuController.SkFieldKind.Choice,
+                Height = 220,
+            };
+            picker.Options.AddRange(names);
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Status Effects",
+                Note = "Adds one effect at its normal duration. Clearing removes everything you currently have, food included.",
+            };
+            form.Fields.Add(picker);
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Add effect",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    string name = f.Field("status").SelectedOption;
+                    if (string.IsNullOrEmpty(name)) return;
+                    SkRun.Cmd("addstatus " + name);
+                    SkCommandProcessor.Notify("Added " + name);
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Clear all",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkRun.Cmd("clearstatus");
+                    SkCommandProcessor.Notify("Cleared status effects.");
+                },
+            });
+            SkMC.ShowForm(form);
         }
 
         // ------------------------------------------------------------------ food
@@ -292,6 +518,8 @@ namespace SkToolbox.SkModules
                 Display = label,
                 Tip = tip,
                 Icon = iconOverride != null ? iconOverride : (picks.Count > 0 ? IconOf(picks[0]) : null),
+                Section = "Character",
+                Scope = SkScope.Client,
                 OnClick = (string ignored) => Feed(kind),
             });
         }

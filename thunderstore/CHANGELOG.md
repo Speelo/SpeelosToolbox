@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0
+
+Includes everything from 1.0.1, which was never published separately.
+
+### New
+
+- **Spawn tab.** Every creature in the game as an icon grid, with sliders for how many to spawn (up to 20) and what star level (up to 3), and a switch to spawn them tamed. Icons borrow each creature's trophy art where one exists.
+- **Forms.** Anything that needs a value now opens a dialog inside the menu instead of being impossible without the console: skills, status effects, inventory size, events, skip time, game speed, difficulty, world modifiers and presets, world and player keys, go to, find, find biome, kick, ban, unban, field of view, frame limit, detail distance and snow. Long lists get their own search box, and the commands that change the world for everyone ask for a confirmation first.
+- **Scope markers.** Every button's hover tip says who a click actually affects: only you, everyone on the world, the server if you are an admin, or nothing at all unless you are the one hosting. Valheim's split between local and shared commands is not guessable from their names.
+- **Cursor tooltips.** Hover text follows the cursor instead of sitting in a footer.
+- **Player tab sections.** Character, Cheats and Info, with new entries for skills, puke, inventory size, stats, status effects and position.
+- **World tab reorganised** into Terrain, Time & Weather, Rules, Progression, Travel, Cleanup and Server, and filled out: sleep, skip time, game speed, forced difficulty, no spawn, no map, no portals, world modifiers and presets, world keys, player keys, go to, recall, find, find biome, list locations, kill enemies, kill tame, remove fish, remove birds, stop fire, stop smoke, save world, kick, ban, unban, the banned list and ping.
+- **System tab**, which replaces Console: field of view, frame limit, detail distance, snow buildup, free fly camera and debug mode, alongside reload, unload and the log folder.
+- Readouts print into a panel in the menu rather than only into the game console, so position, stats, world keys, loaded locations and the banned list are readable with the console closed.
+
+### Fixed
+
+- **The event buttons never did anything.** Random event and the named events sent `/randomevent` and `/event`, which the toolbox never registered, so the lookup missed silently. They now use the game's own commands and share one picker, which lists each raid with the banner the game shows when it starts. Events are refused with a reason when you are not the one running the world, since the game only accepts them there.
+- Vanilla cheat commands run from a menu button were refused unless you had typed `/imacheater` first, because Valheim gates them behind `devcommands`. Menu buttons now lift that gate for the length of the click and put it straight back, so clicking a button never leaves cheats switched on afterwards.
+- Hover text was never cleared between frames, so a tooltip stayed on screen after the cursor moved away, and a tab could show another tab's text.
+- The Spawn tab's "spawn tamed" switch rendered without a checkbox and looked like a dead control.
+
 ## 1.0.1
 
 ### Fixed

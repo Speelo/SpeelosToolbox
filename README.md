@@ -14,6 +14,6 @@ Toolchain: BepInEx 5.4.23.5 (BepInExPack_Valheim 5.4.2350), Valheim 1.0.7, Unity
 ## How it works
 
 - `SkBepInExLoader` is the BepInEx plugin (GUID `com.speelo.speelostoolbox`). It binds config, then `SkLoader` creates the `SpeelosToolbox` GameObject with the controllers.
-- `SkMenuController` draws the clickable IMGUI menu (F6). Modules (`SkModules/ModPlayer`, `ModWorld`, `ModConsole`) build `SkMenu` item lists; the controller keeps a submenu stack and refreshes toggle labels after every click.
+- `SkMenuController` draws the clickable IMGUI menu (F6). Modules (`SkModules/ModPlayer`, `ModGive`, `ModSpawn`, `ModWorld`, `ModConsole`) build icon grids, and the controller keeps a stack of levels plus a form system for commands that need a value first.
 - `SkCommandProcessor` holds every `/command`. `SkCommandPatcher` holds the Harmony patches (console enable, cheat unlock, chat interception, free support, build anywhere, and the mouse-unlock / input-pause patches used while the menu is open).
 - `SkUtilities` has the reflection helpers that poke private game fields by name. Those names are what break between game versions; check them against `assembly_valheim.dll` with Mono.Cecil after every Valheim patch.

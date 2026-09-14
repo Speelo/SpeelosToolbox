@@ -38,6 +38,7 @@ namespace SkToolbox
         SkModules.ModPlayer modulePlayer;
         SkModules.ModWorld moduleWorld;
         SkModules.ModGive moduleGive;
+        SkModules.ModSpawn moduleSpawn;
 
         //
 
@@ -238,18 +239,21 @@ namespace SkToolbox
             modulePlayer = gameObject.AddComponent<SkModules.ModPlayer>();
             moduleWorld = gameObject.AddComponent<SkModules.ModWorld>();
             moduleGive = gameObject.AddComponent<SkModules.ModGive>();
+            moduleSpawn = gameObject.AddComponent<SkModules.ModSpawn>();
 
             // Create entry points on each module. These names are the tab labels, so they stay short.
-            moduleConsole.CallerEntry = new SkMenuItem("Console", () => menuController.RequestSubMenu(moduleConsole.FlushMenu()));
+            moduleConsole.CallerEntry = new SkMenuItem("System", () => moduleConsole.ShowGrid(), "Display settings, and the toolbox itself");
             //moduleGeneric.CallerEntry = new SkMenuItem("Generic Menu\t►", () => menuController.RequestSubMenu(moduleGeneric.FlushMenu()), "Empty Menu with a long context tip");
-            modulePlayer.CallerEntry = new SkMenuItem("Player", () => modulePlayer.ShowGrid());
-            moduleWorld.CallerEntry = new SkMenuItem("World", () => moduleWorld.ShowGrid());
+            modulePlayer.CallerEntry = new SkMenuItem("Player", () => modulePlayer.ShowGrid(), "Food, healing, cheats and readouts for your character");
+            moduleWorld.CallerEntry = new SkMenuItem("World", () => moduleWorld.ShowGrid(), "Terrain, weather, time, wind, events and the map");
             moduleGive.CallerEntry = new SkMenuItem("Give", () => moduleGive.ShowGrid(), "Every item in the game");
+            moduleSpawn.CallerEntry = new SkMenuItem("Spawn", () => moduleSpawn.ShowGrid(), "Every creature in the game");
 
             // Add modules to the menu list
             // This is the order the tabs will be shown as well.
             MenuOptions.Add(modulePlayer);
             MenuOptions.Add(moduleGive);
+            MenuOptions.Add(moduleSpawn);
             MenuOptions.Add(moduleWorld);
             MenuOptions.Add(moduleConsole);
 
