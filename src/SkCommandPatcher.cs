@@ -214,15 +214,32 @@ namespace SkToolbox
             }
         }
 
-        // Speelo's Toolbox: while the clickable menu is open, free the mouse cursor. GameCamera.UpdateMouseCapture runs every
-        // frame and re-locks the cursor unless one of the vanilla GUIs is open, so a postfix is the reliable place to override it.
+        // Speelo's Toolbox: free the mouse cursor while the clickable menu is open.
+        //
+        // This has to be a PREFIX. CursorLockMode.Locked recentres the hardware cursor as a side effect of the write,
+        // so a postfix that unlocks afterwards releases the cursor without moving it back, once every frame. Clearing
+        // m_mouseCapture means the Locked write never happens: that is what the vanilla GUIs do (InventoryGui and
+        // Menu make the first branch's condition false) and what Jotunn's GUIManager.EnableInputBlock does.
+        // The field is private, so it comes in by Harmony injection, as ___m_support does in PatchUpdateSupport.
         [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateMouseCapture))]
         private static class PatchMenuMouseCapture
         {
-            private static void Postfix()
+            private static void Prefix(ref bool ___m_mouseCapture, out bool __state)
+            {
+                __state = ___m_mouseCapture;
+                if (SkMenuController.IsOpen)
+                {
+                    ___m_mouseCapture = false;
+                }
+            }
+
+            private static void Postfix(ref bool ___m_mouseCapture, bool __state)
             {
                 if (SkMenuController.IsOpen)
                 {
+                    // Restore what the player's own Ctrl+F1 toggle had set, so closing the menu does not leave the
+                    // cursor free for ever.
+                    ___m_mouseCapture = __state;
                     ZCursor.LockState = UnityEngine.CursorLockMode.None;
                     ZCursor.Show();
                 }
