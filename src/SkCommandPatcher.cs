@@ -375,6 +375,53 @@ namespace SkToolbox
         }
 
         // ---------------------------------------------------------------------------------------------------------
+        // Speelo's Toolbox: cheats survive dying.
+        //
+        // Respawn does not reset the player, it replaces it: Game destroys the old GameObject and instantiates the
+        // prefab again, so every cheat stored on the character is back at its default while the menu still says it is
+        // on. OnSpawned is the first point where Player.m_localPlayer is the new instance and the character file has
+        // already been applied, and it is called from exactly one place, so it fires once per spawn and not on
+        // teleports.
+        // ---------------------------------------------------------------------------------------------------------
+        [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
+        private static class PatchReapplyToggles
+        {
+            private static void Postfix(Player __instance)
+            {
+                // Never a remote player, and never the character preview on the main menu.
+                if (__instance == null || (object)__instance != (object)Player.m_localPlayer) return;
+                try
+                {
+                    SkCommandProcessor.ReapplyOnSpawn(__instance);
+                }
+                catch (Exception ex)
+                {
+                    SkUtilities.Logz(new string[] { "RESPAWN", "ERROR" }, new string[] { ex.Message }, UnityEngine.LogType.Warning);
+                }
+            }
+        }
+
+        // The god, fly and no cost flags we keep are mirrors of state that lives on the player, and Valheim's own
+        // console can change them without telling us. Reading them back at the moment of death means the respawn
+        // restores what was actually on, not what the menu last saw.
+        [HarmonyPatch(typeof(Player), nameof(Player.OnDeath))]
+        private static class PatchSnapshotOnDeath
+        {
+            private static void Prefix(Player __instance)
+            {
+                if (__instance == null || (object)__instance != (object)Player.m_localPlayer) return;
+                try
+                {
+                    SkCommandProcessor.SnapshotOnDeath(__instance);
+                }
+                catch (Exception ex)
+                {
+                    SkUtilities.Logz(new string[] { "RESPAWN", "ERROR" }, new string[] { ex.Message }, UnityEngine.LogType.Warning);
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
         // Speelo's Toolbox: make god mode actually block damage.
         //
         // Valheim's god mode does not grant immunity. Character.ApplyDamage subtracts the damage first and only

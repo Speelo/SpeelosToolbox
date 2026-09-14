@@ -68,6 +68,13 @@ namespace SkToolbox
                     "\nThis flips the game's own PlayerProfile.s_bypassCheatChecks switch, which every cheat check reads, so progress keeps counting." +
                     "\nIt also stops cheat commands from permanently flagging the character, and clears that flag if it was already set." +
                     "\nSet to false to let Valheim disable achievements normally.");
+                SkConfigEntry.CPersistCheatsOnDeath = Config.Bind("0 - General", "PersistCheatsOnDeath", true
+                    , "Put your cheats back on after you die." +
+                    "\nDying destroys your character object and the game builds a new one from the prefab, so every cheat" +
+                    " that is stored on the character is silently lost: god mode, flying, no cost building, infinite" +
+                    " stamina and far interact all switch themselves off on the respawn." +
+                    "\nWith this on, whatever you had switched on is switched back on once you respawn." +
+                    "\nSet to false to let each death clear them, which is what Valheim does on its own.");
                 SkConfigEntry.CGodModeBlocksDamage = Config.Bind("0 - General", "GodModeBlocksDamage", true
                     , "Make god mode block damage outright." +
                     "\nValheim's own god mode does not stop damage: it subtracts health as normal and only rescues you at" +

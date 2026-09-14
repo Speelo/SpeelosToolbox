@@ -14,6 +14,8 @@ namespace SkToolbox
         public static bool flyEnabled = false;
         public static bool godEnabled = false;
         public static bool farInteract = false;
+        // The chosen reach only ever existed on the Player instance, so a respawn had nothing to restore from.
+        public static float farInteractDistance = 50f;
         public static bool infStamina = false;
         //public static bool infStacks = false;
         public static bool noCostEnabled = false;
@@ -33,6 +35,115 @@ namespace SkToolbox
 
         private static SkModules.ModConsole consoleOpt = null;
         internal static ModConsole ConsoleOpt { get => consoleOpt; set => consoleOpt = value; }
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Surviving death.
+        //
+        // Dying destroys the Player GameObject and the game instantiates a fresh one from the prefab, so anything a
+        // cheat wrote onto the character is back at its default. The toggles that live in our own statics kept saying
+        // "on" while the effect was gone. The fix is to keep the intent (the static) separate from the effect (the
+        // write), so the spawn hook can re-assert the effect without inverting the intent.
+        //
+        // Never re-apply by running the toggle commands: they flip their own state, so re-running one turns it off.
+        // ---------------------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Writes the stamina cheat onto a player. applyOffValues is false on the respawn path: the "off" numbers are
+        /// this class's idea of vanilla, and writing them on every spawn would stomp whatever another mod had tuned.
+        /// </summary>
+        internal static void ApplyInfStamina(Player lp, bool applyOffValues)
+        {
+            if (lp == null) return;
+            if (infStamina)
+            {
+                lp.m_staminaRegenDelay = 0.05f;
+                lp.m_staminaRegen = 999f;
+                lp.m_runStaminaDrain = 0f;
+                // Carrying too much charges stamina every moment you are moving, separately from running.
+                lp.m_encumberedStaminaDrain = 0f;
+            }
+            else if (applyOffValues)
+            {
+                lp.m_staminaRegenDelay = 1f;
+                lp.m_staminaRegen = 5f;
+                lp.m_runStaminaDrain = 10f;
+                lp.m_encumberedStaminaDrain = 10f;
+            }
+        }
+
+        /// <summary>Writes the interaction reach onto a player. Same applyOffValues rule as ApplyInfStamina.</summary>
+        internal static void ApplyFarInteract(Player lp, bool applyOffValues)
+        {
+            if (lp == null) return;
+            if (farInteract)
+            {
+                lp.m_maxInteractDistance = farInteractDistance;
+                lp.m_maxPlaceDistance = farInteractDistance;
+            }
+            else if (applyOffValues)
+            {
+                lp.m_maxInteractDistance = 5f;
+                lp.m_maxPlaceDistance = 5f;
+            }
+        }
+
+        /// <summary>
+        /// Remembers what was actually on at the moment of death. god, fly and no cost are stored on the character
+        /// rather than here, and Valheim's own console can change them behind our back, so the flags are refreshed
+        /// from the live player before it is destroyed. Without this, turning god off in the console and then dying
+        /// would switch it back on.
+        /// </summary>
+        internal static void SnapshotOnDeath(Player lp)
+        {
+            if (lp == null) return;
+            godEnabled = lp.InGodMode();
+            flyEnabled = lp.IsDebugFlying();
+            noCostEnabled = lp.NoCostCheat();
+        }
+
+        /// <summary>
+        /// Called once per spawn. Puts back every cheat whose effect lives on the character. Each branch checks the
+        /// remembered intent and the live state, so it is idempotent and does nothing at all on a fresh character.
+        /// </summary>
+        internal static void ReapplyOnSpawn(Player lp)
+        {
+            if (lp == null) return;
+            if (Configuration.SkConfigEntry.CPersistCheatsOnDeath != null
+                && !Configuration.SkConfigEntry.CPersistCheatsOnDeath.Value)
+            {
+                // The user wants death to clear them. Forget the intent too, so the menu stops claiming they are on.
+                infStamina = false;
+                farInteract = false;
+                godEnabled = false;
+                flyEnabled = false;
+                noCostEnabled = false;
+                return;
+            }
+
+            ApplyInfStamina(lp, applyOffValues: false);
+            ApplyFarInteract(lp, applyOffValues: false);
+
+            if (godEnabled && !lp.InGodMode())
+            {
+                lp.SetGodMode(true);
+            }
+            if (noCostEnabled && !lp.NoCostCheat())
+            {
+                lp.SetNoPlacementCost(true);
+            }
+            if (flyEnabled && !lp.IsDebugFlying())
+            {
+                // ToggleDebugFly writes the flag to the ZDO as well, so remote players and creature AI agree.
+                ZNetView view = lp.GetComponent<ZNetView>();
+                if (view != null && view.IsValid())
+                {
+                    lp.ToggleDebugFly();
+                }
+            }
+
+            // Or-form: never switch off a debug mode the user turned on from the System tab.
+            Player.m_debugMode = Player.m_debugMode || flyEnabled || noCostEnabled || SkCommandPatcher.BCheat;
+        }
 
         [Flags]
         public enum LogTo
@@ -899,20 +1010,16 @@ namespace SkToolbox
                 });
                 new Terminal.ConsoleCommand("/infstam", "Toggles infinite stamina. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
+                    // Valheim 1.0: SetMaxStamina(9999f) removed - Player.UpdateFood recomputes max stamina from food
+                    // every second, so it was dead code that only flashed the bar.
+                    Player lpStam = Player.m_localPlayer;
+                    if (lpStam == null)
+                    {
+                        PrintOut("Infinite stamina: no local player yet. Spawn into a world first.");
+                        return;
+                    }
                     infStamina = !infStamina;
-                    if (infStamina)
-                    {
-                        Player.m_localPlayer.m_staminaRegenDelay = 0.05f;
-                        Player.m_localPlayer.m_staminaRegen = 999f;
-                        Player.m_localPlayer.m_runStaminaDrain = 0f;
-                        // Valheim 1.0: SetMaxStamina(9999f) removed - Player.UpdateFood recomputes max stamina from food every second, so it was dead code that only flashed the bar.
-                    }
-                    else
-                    {
-                        Player.m_localPlayer.m_staminaRegenDelay = 1f;
-                        Player.m_localPlayer.m_staminaRegen = 5f;
-                        Player.m_localPlayer.m_runStaminaDrain = 10f;
-                    }
+                    ApplyInfStamina(lpStam, applyOffValues: true);
                     PrintOut("Infinite stamina toggled! (" + infStamina.ToString() + ")");
                 });
                 new Terminal.ConsoleCommand("/tame", "Tame all nearby creatures. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
@@ -922,35 +1029,29 @@ namespace SkToolbox
                 });
                 new Terminal.ConsoleCommand("/farinteract", "[Distance=50] - Toggles far interactions (building as well). To change distance, toggle this off then back on with new distance. (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
+                    Player lpReach = Player.m_localPlayer;
+                    if (lpReach == null)
+                    {
+                        PrintOut("Far interactions: no local player yet. Spawn into a world first.");
+                        return;
+                    }
                     farInteract = !farInteract;
-                    if (farInteract)
+                    if (farInteract && args.Length > 1)
                     {
-                        if (args.Length > 1)
+                        try
                         {
-                            try
-                            {
-                                int value = int.Parse(args[1]) < 20 ? 20 : int.Parse(args[1]);
-                                Player.m_localPlayer.m_maxInteractDistance = value;
-                                Player.m_localPlayer.m_maxPlaceDistance = value;
-                            }
-                            catch (Exception)
-                            {
-                                PrintOut("Failed to set far interaction distance. Check params. /farinteract 50");
-                            }
+                            // Kept on a static rather than only on the player, so a respawn can restore the reach.
+                            farInteractDistance = int.Parse(args[1]) < 20 ? 20 : int.Parse(args[1]);
                         }
-                        else
+                        catch (Exception)
                         {
-                            Player.m_localPlayer.m_maxInteractDistance = 50f;
-                            Player.m_localPlayer.m_maxPlaceDistance = 50f;
+                            PrintOut("Failed to set far interaction distance. Check params. /farinteract 50");
                         }
-                        PrintOut("Far interactions toggled! (" + farInteract.ToString() + " Distance: " + Player.m_localPlayer.m_maxInteractDistance + ")");
                     }
-                    else
-                    {
-                        Player.m_localPlayer.m_maxInteractDistance = 5f;
-                        Player.m_localPlayer.m_maxPlaceDistance = 5f;
-                        PrintOut("Far interactions toggled! (" + farInteract.ToString() + ")");
-                    }
+                    ApplyFarInteract(lpReach, applyOffValues: true);
+                    PrintOut(farInteract
+                        ? "Far interactions toggled! (True Distance: " + farInteractDistance + ")"
+                        : "Far interactions toggled! (False)");
                 });
                 new Terminal.ConsoleCommand("/ghost", "Toggle Ghostmode (enemy creatures cannot see you). (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {

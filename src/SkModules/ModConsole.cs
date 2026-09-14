@@ -47,6 +47,7 @@ namespace SkToolbox.SkModules
         public void Start()
         {
             SkCommandProcessor.ConsoleOpt = this;
+            SkCommandPatcher.InitPatch(); // idempotent; the respawn hooks must be in place before the first spawn
             //SkConsole = gameObject.AddComponent<SkConsole>();
             BeginMenu();
             try

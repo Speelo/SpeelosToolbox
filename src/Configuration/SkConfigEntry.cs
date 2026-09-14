@@ -15,6 +15,7 @@ namespace SkToolbox.Configuration
         public static ConfigEntry<bool> CAllowExecuteOnClear { get; set; }
         public static ConfigEntry<bool> CKeepAchievements { get; set; }
         public static ConfigEntry<bool> CGodModeBlocksDamage { get; set; }
+        public static ConfigEntry<bool> CPersistCheatsOnDeath { get; set; }
         public static ConfigEntry<bool> CConsoleEnabled { get; set; }
         public static ConfigEntry<bool> CScrollable { get; set; }
         public static ConfigEntry<int> CScrollableLimit { get; set; }
