@@ -19,6 +19,16 @@ namespace SkToolbox
         public static bool infStamina = false;
         //public static bool infStacks = false;
         public static bool noCostEnabled = false;
+        public static bool ghostEnabled = false;
+
+        // Player tuning. Zero means "never touched", so a respawn only rewrites what the user actually set and
+        // everything else is left at whatever the prefab (or another mod) decided.
+        public static int carryWeight = 0;
+        public static int pickupRange = 0;
+        public static int jumpForce = 0;
+        public static int runSpeed = 0;
+        public static int swimSpeed = 0;
+        public static int exploreRadius = 0;
         public static bool bTeleport = false;
         public static bool bDebugTime = false;
 
@@ -71,6 +81,56 @@ namespace SkToolbox
             }
         }
 
+        private static bool tuningBaselineTaken = false;
+        private static float baseCarry, basePickup, baseJump, baseRun, baseSwim, baseExplore;
+
+        /// <summary>
+        /// Remembers the untouched values so "Defaults" can put them back. Taken from a live player before anything
+        /// is written, rather than hard-coded, so another mod's tuning is what gets restored if it got there first.
+        /// </summary>
+        internal static void CaptureTuningBaseline(Player lp)
+        {
+            if (lp == null || tuningBaselineTaken) return;
+            tuningBaselineTaken = true;
+            baseCarry = lp.m_maxCarryWeight;
+            basePickup = lp.m_autoPickupRange;
+            baseJump = lp.m_jumpForce;
+            baseRun = lp.m_runSpeed;
+            baseSwim = lp.m_swimSpeed;
+            baseExplore = Minimap.instance != null ? Minimap.instance.m_exploreRadius : 100f;
+        }
+
+        /// <summary>Writes every tuning value the user has set. All of these live on the player, so a respawn loses them.</summary>
+        internal static void ApplyTuning(Player lp)
+        {
+            if (lp == null) return;
+            CaptureTuningBaseline(lp);
+            if (carryWeight > 0) lp.m_maxCarryWeight = carryWeight;
+            if (pickupRange > 0) lp.m_autoPickupRange = pickupRange;
+            if (jumpForce > 0) lp.m_jumpForce = jumpForce;
+            if (runSpeed > 0) lp.m_runSpeed = runSpeed;
+            if (swimSpeed > 0) lp.m_swimSpeed = swimSpeed;
+            if (exploreRadius > 0 && Minimap.instance != null) Minimap.instance.m_exploreRadius = exploreRadius;
+        }
+
+        /// <summary>Forgets every tuning value and puts the captured originals back.</summary>
+        internal static void ResetTuning(Player lp)
+        {
+            carryWeight = 0;
+            pickupRange = 0;
+            jumpForce = 0;
+            runSpeed = 0;
+            swimSpeed = 0;
+            exploreRadius = 0;
+            if (lp == null || !tuningBaselineTaken) return;
+            lp.m_maxCarryWeight = baseCarry;
+            lp.m_autoPickupRange = basePickup;
+            lp.m_jumpForce = baseJump;
+            lp.m_runSpeed = baseRun;
+            lp.m_swimSpeed = baseSwim;
+            if (Minimap.instance != null) Minimap.instance.m_exploreRadius = baseExplore;
+        }
+
         /// <summary>Writes the interaction reach onto a player. Same applyOffValues rule as ApplyInfStamina.</summary>
         internal static void ApplyFarInteract(Player lp, bool applyOffValues)
         {
@@ -99,6 +159,7 @@ namespace SkToolbox
             godEnabled = lp.InGodMode();
             flyEnabled = lp.IsDebugFlying();
             noCostEnabled = lp.NoCostCheat();
+            ghostEnabled = lp.InGhostMode();
         }
 
         /// <summary>
@@ -117,11 +178,18 @@ namespace SkToolbox
                 godEnabled = false;
                 flyEnabled = false;
                 noCostEnabled = false;
+                ghostEnabled = false;
                 return;
             }
 
             ApplyInfStamina(lp, applyOffValues: false);
             ApplyFarInteract(lp, applyOffValues: false);
+            ApplyTuning(lp);
+
+            if (ghostEnabled && !lp.InGhostMode())
+            {
+                lp.SetGhostMode(true);
+            }
 
             if (godEnabled && !lp.InGodMode())
             {
@@ -1055,8 +1123,15 @@ namespace SkToolbox
                 });
                 new Terminal.ConsoleCommand("/ghost", "Toggle Ghostmode (enemy creatures cannot see you). (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args)
                 {
-                    Player.m_localPlayer.SetGhostMode(!Player.m_localPlayer.InGhostMode());
-                    PrintOut("Ghost mode toggled! (" + Player.m_localPlayer.InGhostMode().ToString() + ")");
+                    Player lpGhost = Player.m_localPlayer;
+                    if (lpGhost == null)
+                    {
+                        PrintOut("Ghost: no local player yet. Spawn into a world first.");
+                        return;
+                    }
+                    lpGhost.SetGhostMode(!lpGhost.InGhostMode());
+                    ghostEnabled = lpGhost.InGhostMode(); // so a respawn can put it back
+                    PrintOut("Ghost mode toggled! (" + ghostEnabled.ToString() + ")");
                 });
                 new Terminal.ConsoleCommand("/tod", "[0-1] - Set (and lock) time of day (-1 to unlock time). Ex. /tod 0.5 (Speelo's Toolbox)", delegate (Terminal.ConsoleEventArgs args) // Valheim 1.0: description was a copy-paste from /portals
                 {

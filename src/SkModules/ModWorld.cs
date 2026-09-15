@@ -284,6 +284,8 @@ namespace SkToolbox.SkModules
                      SkIcons.First("SledgeStagbreaker", "Club"), () => ShowUserForm("Ban Player", "ban", "Ban"), SkScope.Admin),
                 Cell("Server", "Unban", "Lift a ban by IP or user ID",
                      SkIcons.First("MeadHealthMinor", "Honey"), ShowUnbanForm, SkScope.Admin),
+                Cell("Server", "Who's Online", "List the players connected right now",
+                     SkIcons.First("Amber", "Coins"), () => SkRun.Show("Players Online", "/whois", "Nobody else is connected."), SkScope.Client),
                 Cell("Server", "Banned List", "Show who is banned",
                      SkIcons.First("Coins"), () => SkRun.Show("Banned Users", "banned", "Nobody is banned."), SkScope.Admin),
                 Cell("Server", "Ping", "Measure the round trip to the server",

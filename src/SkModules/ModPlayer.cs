@@ -77,6 +77,10 @@ namespace SkToolbox.SkModules
                    ShowInventoryForm);
             Action(grid, "Character", "Stats", "Show what the game has recorded for this character", SkIcons.First("Ruby", "Coins"),
                    () => SkRun.Show("Player Stats", "stats", "No stats to show yet."));
+            Action(grid, "Character", "Tweaks", "Carry weight, pickup range, jump, speeds and map reveal radius",
+                   SkIcons.First("Bronze", "Copper"), ShowTuningForm);
+            Action(grid, "Character", "Clear Inventory", "Throw away everything you are carrying",
+                   SkIcons.First("Flint", "Stone"), ShowClearInventoryForm);
 
             Toggle(grid, "Cheats", "Godmode", "Take no damage", SkIcons.First("HelmetOdin", "CapeOdin"),
                    ToggleGodmode, () => Player.m_localPlayer != null && Player.m_localPlayer.InGodMode());
@@ -88,6 +92,12 @@ namespace SkToolbox.SkModules
                    ToggleNoCost, () => Player.m_localPlayer != null && Player.m_localPlayer.NoCostCheat());
             Toggle(grid, "Cheats", "Build Anywhere", "Remove build restrictions", SkIcons.First("Cultivator", "Hoe"),
                    ToggleAnywhere, () => SkCommandPatcher.bBuildAnywhere);
+            Toggle(grid, "Cheats", "No Support Needed", "Pieces float without support. Turning this off lets unsupported builds collapse",
+                   SkIcons.First("FineWood", "RoundLog", "Wood"), ToggleNoSupport, () => SkCommandPatcher.BFreeSupport);
+            Toggle(grid, "Cheats", "Ghost", "Creatures cannot see you", SkIcons.First("CapeLinen", "CapeDeerHide", "Feathers"),
+                   ToggleGhost, () => Player.m_localPlayer != null && Player.m_localPlayer.InGhostMode());
+            Action(grid, "Cheats", "Reach", "Interact with and place things from far away",
+                   SkIcons.First("Chain", "LeatherScraps"), ShowReachForm);
             Action(grid, "Cheats", "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame, SkScope.Server);
             Action(grid, "Cheats", "Status Effects", "Apply a status effect, or clear the ones you have",
                    SkIcons.First("MeadFrostResist", "MeadPoisonResist", "MeadHealthMinor"), ShowStatusForm);
@@ -102,6 +112,8 @@ namespace SkToolbox.SkModules
                    ToggleESPEnemies, () => SkCommandProcessor.bDetectEnemies);
             Action(grid, "Info", "Position", "Print your coordinates, zone and distance from the centre", SkIcons.First("Amber", "Coins"),
                    () => SkRun.Show("Position", "pos", "No position yet."));
+            Action(grid, "Info", "Find Tombstone", "Pin your nearby graves on the map", SkIcons.First("AmberPearl", "Ruby"),
+                   () => SkCommandProcessor.ProcessCommand("/findtomb", SkCommandProcessor.LogTo.Chat));
 
             return grid;
         }
@@ -239,6 +251,167 @@ namespace SkToolbox.SkModules
             if (skills == null) return;
             skills.CheatResetSkill(name == "All" ? "all" : name);
             SkCommandProcessor.Notify((name == "All" ? "All skills" : name) + " reset to zero");
+        }
+
+        // ------------------------------------------------------------------ tuning, reach, inventory
+
+        /// <summary>
+        /// The knobs that used to be reachable only through /set. They are written straight onto the player rather
+        /// than run as commands, which means ReapplyOnSpawn can restore them; through /set they quietly reverted on
+        /// every death.
+        /// </summary>
+        private void ShowTuningForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+            SkCommandProcessor.CaptureTuningBaseline(player);
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Tweaks",
+                Note = "Each slider starts where the game has it now. These are restored after you die, unless PersistCheatsOnDeath is off.",
+            };
+            form.Fields.Add(Slider("carry", "Carry weight", 50, 2000,
+                                   SkCommandProcessor.carryWeight > 0 ? SkCommandProcessor.carryWeight : Mathf.RoundToInt(player.m_maxCarryWeight)));
+            // The pickup sweep uses a fixed 100-entry buffer, so a huge radius quietly collects less, not more.
+            form.Fields.Add(Slider("pickup", "Auto pickup range", 2, 20,
+                                   SkCommandProcessor.pickupRange > 0 ? SkCommandProcessor.pickupRange : Mathf.RoundToInt(player.m_autoPickupRange)));
+            form.Fields.Add(Slider("jump", "Jump force", 4, 40,
+                                   SkCommandProcessor.jumpForce > 0 ? SkCommandProcessor.jumpForce : Mathf.RoundToInt(player.m_jumpForce)));
+            form.Fields.Add(Slider("run", "Run speed", 2, 40,
+                                   SkCommandProcessor.runSpeed > 0 ? SkCommandProcessor.runSpeed : Mathf.RoundToInt(player.m_runSpeed)));
+            form.Fields.Add(Slider("swim", "Swim speed", 1, 20,
+                                   SkCommandProcessor.swimSpeed > 0 ? SkCommandProcessor.swimSpeed : Mathf.RoundToInt(player.m_swimSpeed)));
+            form.Fields.Add(Slider("explore", "Map reveal radius", 50, 500,
+                                   SkCommandProcessor.exploreRadius > 0 ? SkCommandProcessor.exploreRadius
+                                   : (Minimap.instance != null ? Mathf.RoundToInt(Minimap.instance.m_exploreRadius) : 100)));
+
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+                    SkCommandProcessor.carryWeight = f.Field("carry").IntValue;
+                    SkCommandProcessor.pickupRange = f.Field("pickup").IntValue;
+                    SkCommandProcessor.jumpForce = f.Field("jump").IntValue;
+                    SkCommandProcessor.runSpeed = f.Field("run").IntValue;
+                    SkCommandProcessor.swimSpeed = f.Field("swim").IntValue;
+                    SkCommandProcessor.exploreRadius = f.Field("explore").IntValue;
+                    SkCommandProcessor.ApplyTuning(lp);
+                    SkCommandProcessor.Notify("Tweaks applied.");
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Defaults",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkCommandProcessor.ResetTuning(Player.m_localPlayer);
+                    SkCommandProcessor.Notify("Tweaks back to normal.");
+                },
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>Interaction reach. A slider rather than a toggle, since the distance is the point.</summary>
+        private void ShowReachForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Reach",
+                Note = "How far away you can interact with things and place pieces. Normal is about 5.",
+            };
+            form.Fields.Add(Slider("reach", "Reach", 20, 100, Mathf.RoundToInt(SkCommandProcessor.farInteractDistance)));
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+                    SkCommandProcessor.farInteractDistance = f.Field("reach").IntValue;
+                    SkCommandProcessor.farInteract = true;
+                    SkCommandProcessor.ApplyFarInteract(lp, applyOffValues: true);
+                    SkCommandProcessor.Notify("Reach set to " + f.Field("reach").IntValue);
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Back to normal",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+                    SkCommandProcessor.farInteract = false;
+                    SkCommandProcessor.ApplyFarInteract(lp, applyOffValues: true);
+                    SkCommandProcessor.Notify("Reach back to normal.");
+                },
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>Emptying your pockets has no undo, so it asks first rather than being a bare cell.</summary>
+        private void ShowClearInventoryForm()
+        {
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Clear Inventory",
+                Note = "Throws away every item you are carrying, equipped ones included. There is no way to get them back.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "confirm",
+                Label = "Throw everything away",
+                Kind = SkMenuController.SkFieldKind.Toggle,
+            });
+            form.Validate = (SkMenuController.SkForm f) =>
+            {
+                SkMenuController.SkFormField box = f.Field("confirm");
+                return (box != null && !box.BoolValue) ? "Switch the confirmation to ON first." : null;
+            };
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Clear inventory",
+                Run = (SkMenuController.SkForm f) =>
+                    SkCommandProcessor.ProcessCommand("/clearinventory", SkCommandProcessor.LogTo.Chat),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        private static SkMenuController.SkFormField Slider(string id, string label, int min, int max, int value)
+        {
+            return new SkMenuController.SkFormField
+            {
+                Id = id,
+                Label = label,
+                Kind = SkMenuController.SkFieldKind.IntSlider,
+                Min = min,
+                Max = max,
+                IntValue = Mathf.Clamp(value, min, max),
+            };
+        }
+
+        public void ToggleNoSupport()
+        {
+            SkCommandProcessor.ProcessCommand("/nosup", SkCommandProcessor.LogTo.Chat);
+        }
+
+        public void ToggleGhost()
+        {
+            SkCommandProcessor.ProcessCommand("/ghost", SkCommandProcessor.LogTo.Chat);
         }
 
         // ------------------------------------------------------------------ inventory and status
