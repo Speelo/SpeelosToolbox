@@ -22,7 +22,7 @@ Anything that needs a value first opens a small form inside the menu, with a sea
 
 Every button's hover tip also says who a click affects, because Valheim's split between local and shared commands is not guessable from their names. See below.
 
-While the menu is open the mouse is freed and the game ignores player input. The camera stops turning, clicks never swing your weapon, and typing in a search box will not swap hotbar slots or open the inventory.
+While the menu is open the mouse is freed for the menu, but you can still walk: WASD moves you as normal, and holding the right mouse button turns the camera until you release it. Attacking, blocking, jumping and dodging stay switched off, clicks never swing your weapon, and typing in a search box moves nothing and will not swap hotbar slots or open the inventory. `WalkWithMenuOpen` and `MenuLookKey` in the config control this, and with a gamepad active the menu freezes you in place instead.
 
 ### Food
 

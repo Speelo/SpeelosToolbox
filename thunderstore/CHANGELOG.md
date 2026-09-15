@@ -2,8 +2,13 @@
 
 ## 1.1.1
 
+### New
+
+- **You can walk around with the menu open.** WASD moves you as normal; hold the right mouse button to turn the camera and release it to get the cursor back. Attacking, blocking, jumping and dodging stay switched off, which is the same state the game puts you in for a moment after closing its own menus. Typing in a search box moves nothing. Set `WalkWithMenuOpen` to false to go back to being frozen in place, or change `MenuLookKey` if you would rather leave the right button alone. Keyboard and mouse only: with a gamepad active the menu freezes you as before.
+
 ### Fixed
 
+- **The menu dragged your cursor back to the middle of the screen.** Freeing the cursor was done after the game had already locked it, and locking recentres the pointer, so it was being yanked to the centre every frame. It is now suppressed before it happens, which is how Valheim's own menus do it. Thanks to BristleBeard for finding and fixing this.
 - **Kill Enemies destroyed every creature spawner nearby.** The game's `killenemies` kills the creatures and then sweeps every spawner in the scene with no distance check, so a button described as "kill every hostile creature nearby" was permanently removing greydwarf nests and draugr piles across every loaded zone, for everyone on the world. It now runs `killenemycreatures`, which stops at the creatures. The old behaviour is still available as **Kill Enemies & Nests**, which says what it does and asks first.
 - **Your cheats no longer switch off when you die.** Dying does not reset your character, it replaces it: the game destroys the old one and builds a new one from the prefab, so god mode, flying, no cost building, ghost, infinite stamina and far interact were all silently lost on every respawn while the menu still showed some of them as on. Whatever you had switched on is switched back on once you respawn, and if you turned something off in Valheim's own console, that is respected rather than undone. Set `PersistCheatsOnDeath` to false in the config to let each death clear them instead.
 - **Status Effects did nothing on someone else's server.** It ran the game's `addstatus`, which is admin-gated, while the button claimed to be a client-side action. Status effects are local, so it now applies them directly and the marker is honest.
