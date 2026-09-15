@@ -18,6 +18,8 @@ namespace SkToolbox.Configuration
         public static ConfigEntry<bool> CPersistCheatsOnDeath { get; set; }
         public static ConfigEntry<bool> OMenuWalk { get; set; }
         public static ConfigEntry<string> OMenuLookKey { get; set; }
+        public static ConfigEntry<string> OBookmarks { get; set; }
+        public static ConfigEntry<string> OLoadouts { get; set; }
         public static ConfigEntry<bool> CConsoleEnabled { get; set; }
         public static ConfigEntry<bool> CScrollable { get; set; }
         public static ConfigEntry<int> CScrollableLimit { get; set; }

@@ -184,6 +184,9 @@ namespace SkToolbox.SkModules
                 // -------- terrain
                 Cell("Terrain", "Terrain Tools", "Level, raise, dig or undo terrain around you",
                      SkIcons.First("Hoe"), ShowTerrain, SkScope.Server),
+                Cell("Building", "Repair Nearby", "Repair every building piece around you",
+                     SkIcons.First("Hammer"), ShowRepairForm, SkScope.Server),
+
                 Cell("Terrain", "Optimize Terrain", "Compact old terrain edits to help performance",
                      SkIcons.First("PickaxeIron", "PickaxeStone", "PickaxeAntler"), () => Run("/optterrain"), SkScope.Server),
 
@@ -571,6 +574,57 @@ namespace SkToolbox.SkModules
             {
                 Label = "Kill and destroy",
                 Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("killenemies", "Killed nearby enemies and their spawners."),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>
+        /// Repairs every building piece in range. WearNTear.Repair refuses a piece that is already whole and
+        /// rate-limits itself to once a second per piece, so the count reported is genuinely what needed work.
+        /// The repair goes out as an RPC to whoever owns the piece, so it works on someone else's build too.
+        /// </summary>
+        private void ShowRepairForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            SkMenuController.SkForm form = NewForm("Repair Nearby",
+                "Repairs worn and damaged building pieces around you. Pieces that are already whole are left alone.");
+            form.Fields.Add(Slider("radius", "Radius", 5, 100, 30));
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Repair",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+
+                    float radius = f.Field("radius").IntValue;
+                    Vector3 origin = lp.transform.position;
+                    int repaired = 0;
+
+                    WearNTear[] pieces = UnityEngine.Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None);
+                    foreach (WearNTear piece in pieces)
+                    {
+                        if (piece == null) continue;
+                        if (Vector3.Distance(piece.transform.position, origin) > radius) continue;
+                        try
+                        {
+                            if (piece.Repair()) repaired++;
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+
+                    SkCommandProcessor.Notify(repaired > 0
+                        ? "Repaired " + repaired + " pieces."
+                        : "Nothing nearby needed repairing.");
+                },
             });
             SkMC.ShowForm(form);
         }

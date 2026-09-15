@@ -123,6 +123,12 @@ namespace SkToolbox
                     " blocking is switched off while the menu is open." +
                     "\nLeftAlt is a good alternative if you would rather leave the right button alone." +
                     "\nValid key names: https://docs.unity3d.com/ScriptReference/KeyCode.html");
+                SkConfigEntry.OBookmarks = Config.Bind("4 - OnScreenMenu", "Bookmarks", ""
+                    , "Saved teleport spots, managed from the menu - there is no need to edit this by hand." +
+                    "\nEach entry is seed|name|x|y|z, and only the ones matching the world you are in are shown.");
+                SkConfigEntry.OLoadouts = Config.Bind("4 - OnScreenMenu", "Loadouts", ""
+                    , "Saved equipment sets, managed from the menu - there is no need to edit this by hand." +
+                    "\nEach entry is name|prefab:quality,prefab:quality.");
                 SkConfigEntry.OMenuOpacity = Config.Bind("4 - OnScreenMenu", "MenuOpacity", 0.96f
                     , "How solid the menu background is. 1 = fully opaque, 0.5 = half see-through. Takes effect immediately.");
 
