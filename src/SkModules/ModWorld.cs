@@ -563,7 +563,8 @@ namespace SkToolbox.SkModules
         private void ShowKillSpawnersForm()
         {
             SkMenuController.SkForm form = NewForm("Kill Enemies & Nests",
-                "Kills nearby enemies and destroys every creature spawner in every loaded zone. Spawners do not come back, and everyone on the world loses them.");
+                "Spawners do not regenerate. Everyone on this world loses them, and the only way back is a world with those zones never loaded.");
+            form.Warning = "This DESTROYS every creature spawner in every loaded zone.";
             form.Fields.Add(ConfirmBox("Destroy the spawners too"));
             form.Validate = ConfirmRequired;
             form.Actions.Add(new SkMenuController.SkFormAction

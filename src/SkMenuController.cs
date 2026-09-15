@@ -172,6 +172,12 @@ namespace SkToolbox
             public List<SkFormAction> Actions = new List<SkFormAction>();
 
             /// <summary>
+            /// Shown above everything else, in red. For the handful of actions that destroy something outright, so
+            /// the consequence is the first thing read rather than a line of grey body text.
+            /// </summary>
+            public string Warning = "";
+
+            /// <summary>
             /// Optional gate run before any action. Returning a message refuses the action and keeps the form open
             /// with that message shown, which is how the dangerous commands ask for a confirmation tick.
             /// </summary>
@@ -229,7 +235,7 @@ namespace SkToolbox
         private bool stylesReady = false;
         private float stylesAlpha = -1f;
         private GUIStyle styleWindow, styleItem, styleHeader, styleTip, styleSmall, styleBack, styleFilter;
-        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell, styleSectionBox, styleSectionHeader, styleTooltip, styleError;
+        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell, styleSectionBox, styleSectionHeader, styleTooltip, styleError, styleWarning;
         private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip;
 
         private static float ConfiguredOpacity =>
@@ -834,6 +840,12 @@ namespace SkToolbox
         {
             SkForm form = activeForm;
             GUILayout.Label(form.Title, styleHeader);
+            if (!string.IsNullOrEmpty(form.Warning))
+            {
+                GUILayout.Space(2f);
+                GUILayout.Label(form.Warning, styleWarning);
+                GUILayout.Space(2f);
+            }
             if (!string.IsNullOrEmpty(form.Note))
             {
                 GUILayout.Label(form.Note, styleTip);
@@ -1182,6 +1194,11 @@ namespace SkToolbox
 
             styleError = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, fontStyle = FontStyle.Bold };
             styleError.normal.textColor = new Color(1f, 0.55f, 0.45f);
+
+            // Louder than styleError: this one carries "you are about to destroy something".
+            styleWarning = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, fontStyle = FontStyle.Bold };
+            styleWarning.normal.textColor = new Color(1f, 0.38f, 0.32f);
+            styleWarning.padding = new RectOffset(0, 0, 4, 4);
             styleTip.normal.textColor = new Color(0.95f, 0.90f, 0.65f);
 
             styleSmall = new GUIStyle(GUI.skin.label) { fontSize = 12 };

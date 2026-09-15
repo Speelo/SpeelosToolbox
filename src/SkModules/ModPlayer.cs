@@ -369,12 +369,14 @@ namespace SkToolbox.SkModules
             SkMenuController.SkForm form = new SkMenuController.SkForm
             {
                 Title = "Clear Inventory",
-                Note = "Throws away every item you are carrying, equipped ones included. There is no way to get them back.",
+                Warning = "This DESTROYS every item you are carrying.",
+                Note = "Equipped gear included, and everything in any extra slots you have. Nothing is dropped on the ground, "
+                     + "no tombstone is left, and there is no way to get any of it back. Put anything you want to keep in a chest first.",
             };
             form.Fields.Add(new SkMenuController.SkFormField
             {
                 Id = "confirm",
-                Label = "Throw everything away",
+                Label = "I understand everything will be destroyed",
                 Kind = SkMenuController.SkFieldKind.Toggle,
             });
             form.Validate = (SkMenuController.SkForm f) =>
@@ -384,7 +386,7 @@ namespace SkToolbox.SkModules
             };
             form.Actions.Add(new SkMenuController.SkFormAction
             {
-                Label = "Clear inventory",
+                Label = "Destroy everything",
                 Run = (SkMenuController.SkForm f) =>
                     SkCommandProcessor.ProcessCommand("/clearinventory", SkCommandProcessor.LogTo.Chat),
             });
