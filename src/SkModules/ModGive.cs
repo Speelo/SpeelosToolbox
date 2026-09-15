@@ -12,6 +12,7 @@ namespace SkToolbox.SkModules
     internal class ModGive : SkBaseModule, IModule
     {
         private int quantity = 1;
+        private int level = 1;
         private List<SkMenuController.SkGridItem> cache;
         private int cachedFor = 0;
 
@@ -49,14 +50,22 @@ namespace SkToolbox.SkModules
                 SkCommandProcessor.Notify("Item list is not available yet. Load into a world first.");
                 return;
             }
-            SkMC.RequestGridMenu(cache, new SkMenuController.SkMenuSlider
+            List<SkMenuController.SkMenuSlider> sliders = new List<SkMenuController.SkMenuSlider>
             {
-                Label = "Quantity",
-                Min = 1,
-                Max = 100,
-                Get = () => quantity,
-                Set = (int value) => quantity = value,
-            }, "Give", showFilter: true);
+                new SkMenuController.SkMenuSlider
+                {
+                    Label = "Quantity", Min = 1, Max = 100,
+                    Get = () => quantity, Set = (int value) => quantity = value,
+                },
+                new SkMenuController.SkMenuSlider
+                {
+                    // Four is the most any vanilla item upgrades to. Items with a lower ceiling are clamped to
+                    // their own when they are given, rather than being hidden from the slider.
+                    Label = "Level", Min = 1, Max = 4,
+                    Get = () => level, Set = (int value) => level = value,
+                },
+            };
+            SkMC.RequestGridMenu(cache, sliders, "Give", showFilter: true);
         }
 
         /// <summary>Every item prefab that has an ItemDrop, sorted by its display name.</summary>
@@ -142,6 +151,11 @@ namespace SkToolbox.SkModules
                 return;
             }
 
+            // Not every item upgrades as far as the slider goes; a level 4 request on a one-level item would
+            // otherwise produce an item the game has no stats for.
+            int maxQuality = Mathf.Max(1, drop.m_itemData.m_shared.m_maxQuality);
+            int quality = Mathf.Clamp(level, 1, maxQuality);
+
             int remaining = Mathf.Max(1, quantity);
             int maxStack = Mathf.Max(1, drop.m_itemData.m_shared.m_maxStackSize);
             // Matches what the game does when it spawns items: only flag them as cheated when cheat checks are live.
@@ -152,7 +166,7 @@ namespace SkToolbox.SkModules
             {
                 int take = Mathf.Min(remaining, maxStack);
                 ItemDrop.ItemData added = player.GetInventory().AddItem(
-                    prefabName, take, drop.m_itemData.m_quality, drop.m_itemData.m_variant, 0L, "", cheated, true);
+                    prefabName, take, quality, drop.m_itemData.m_variant, 0L, "", cheated, true);
                 if (added == null)
                 {
                     break; // no room left
@@ -163,7 +177,10 @@ namespace SkToolbox.SkModules
 
             if (given > 0)
             {
-                SkCommandProcessor.Notify("Gave " + given + "x " + prefabName + (remaining > 0 ? " (inventory full)" : ""));
+                SkCommandProcessor.Notify("Gave " + given + "x " + prefabName
+                    + (quality > 1 ? " (level " + quality + ")" : "")
+                    + (level > maxQuality ? ", the most this one goes to" : "")
+                    + (remaining > 0 ? " (inventory full)" : ""));
             }
             else
             {
