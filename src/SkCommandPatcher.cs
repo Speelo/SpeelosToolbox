@@ -427,6 +427,45 @@ namespace SkToolbox
         }
 
         // ---------------------------------------------------------------------------------------------------------
+        // Speelo's Toolbox: jumping and crouching while the menu is open.
+        //
+        // Walking with the menu up rides on Valheim's own takeInputDelay state, which passes the move vector and the
+        // run flag through to SetControls but hard-falses attack, block, jump and crouch together. Sprint therefore
+        // survives and jump and crouch do not. PlayerController works the two out at the top of FixedUpdate and then
+        // throws them away in that branch, so the cheapest way to get them back is to put them into SetControls
+        // ourselves, leaving everything the branch suppresses for a reason suppressed.
+        //
+        // The edge detection mirrors the game's own: it reads the held state and fires on the rising edge, so a key
+        // already down when the menu opens does not fire on the first frame.
+        // ---------------------------------------------------------------------------------------------------------
+        [HarmonyPatch(typeof(Player), nameof(Player.SetControls))]
+        private static class PatchMenuJumpCrouch
+        {
+            private static bool lastJump;
+            private static bool lastCrouch;
+
+            private static void Prefix(Player __instance, ref bool jump, ref bool crouch)
+            {
+                // Once per frame, and only for the player actually holding the keyboard.
+                if (__instance == null || (object)__instance != (object)Player.m_localPlayer) return;
+
+                bool jumpHeld = ZInput.GetButton("Jump");
+                bool crouchHeld = ZInput.GetButton("Crouch") || ZInput.GetButton("JoyCrouch");
+                bool jumpEdge = jumpHeld && !lastJump;
+                bool crouchEdge = crouchHeld && !lastCrouch;
+                lastJump = jumpHeld;
+                lastCrouch = crouchHeld;
+
+                // Tracked every frame above so the edge stays honest, but only injected while the menu owns input
+                // and walking is allowed - typing a space into a search box must not launch the player.
+                if (!SkMenuController.IsOpen || !WalkAllowed) return;
+
+                if (jumpEdge) jump = true;
+                if (crouchEdge) crouch = true;
+            }
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
         // Speelo's Toolbox: cheats survive dying.
         //
         // Respawn does not reset the player, it replaces it: Game destroys the old GameObject and instantiates the
