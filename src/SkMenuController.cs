@@ -1012,6 +1012,15 @@ namespace SkToolbox
         private void DrawForm()
         {
             SkForm form = activeForm;
+
+            // Asked every frame rather than only on a click, so an action that cannot run yet is visibly
+            // unavailable instead of silently refusing when pressed.
+            string blockedBecause = null;
+            if (form.Validate != null)
+            {
+                try { blockedBecause = form.Validate(form); } catch (Exception) { blockedBecause = null; }
+            }
+
             GUILayout.Label(form.Title, styleHeader);
             if (!string.IsNullOrEmpty(form.Warning))
             {
@@ -1023,9 +1032,10 @@ namespace SkToolbox
             {
                 GUILayout.Label(form.Note, styleTip);
             }
-            if (!string.IsNullOrEmpty(form.Error))
+            string problem = !string.IsNullOrEmpty(form.Error) ? form.Error : blockedBecause;
+            if (!string.IsNullOrEmpty(problem))
             {
-                GUILayout.Label(form.Error, styleError);
+                GUILayout.Label(problem, styleError);
             }
             GUILayout.Space(6f);
 
@@ -1079,6 +1089,8 @@ namespace SkToolbox
 
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
+            bool formWasEnabled = GUI.enabled;
+            if (!string.IsNullOrEmpty(blockedBecause)) GUI.enabled = false;
             foreach (SkFormAction action in form.Actions)
             {
                 if (action == null || action.Run == null) continue;
@@ -1109,6 +1121,7 @@ namespace SkToolbox
                 }
                 GUILayout.Space(6f);
             }
+            GUI.enabled = formWasEnabled; // Cancel is never gated
             GUILayout.FlexibleSpace();
             // A form with no actions is a readout, so the only way out reads as Close rather than Cancel.
             if (GUILayout.Button(form.Actions.Count == 0 ? "Close" : "Cancel", styleBack, GUILayout.Width(110f), GUILayout.Height(28f)))
