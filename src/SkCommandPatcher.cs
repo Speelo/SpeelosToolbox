@@ -238,8 +238,10 @@ namespace SkToolbox
                 if (SkMenuController.IsOpen)
                 {
                     // Restore what the player's own Ctrl+F1 toggle had set, so closing the menu does not leave the
-                    // cursor free for ever.
-                    ___m_mouseCapture = __state;
+                    // cursor free for ever. The toggle itself runs at the top of UpdateMouseCapture, against the
+                    // false the prefix just wrote, so a field that came back true means the player pressed Ctrl+F1
+                    // this frame and wants the opposite of what they had. Restoring __state flatly would eat it.
+                    ___m_mouseCapture = ___m_mouseCapture ? !__state : __state;
                     ZCursor.LockState = UnityEngine.CursorLockMode.None;
                     ZCursor.Show();
                 }
