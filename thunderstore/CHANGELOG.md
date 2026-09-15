@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.3
+
+### New
+
+- **Bookmarks.** Save where you are standing under a name and teleport back to it later. Bookmarks belong to the world you took them in, matched on its seed, so coordinates from one world never show up in another. Player tab, under Info.
+- **Loadouts.** Snapshot your whole inventory, not just what you are wearing: every stack with its size, quality, durability and crafter, and which pieces were equipped. Loading one puts all of it back on, which makes it useful after a death rather than only for swapping gear you already have. Loading replaces what you are carrying, so it asks first.
+- **Repair Nearby.** Repairs every worn building piece around you, with a radius slider. Works on other people's builds too, since the repair goes to whoever owns the piece. World tab, under a new Building section.
+- **Items can be given at a chosen level.** A Level slider sits beside Quantity on the Give tab, so an iron pickaxe at level 4 is two sliders and a click. Items that do not upgrade that far are given at their own maximum, and the message says so.
+
+### Changed
+
+- Naming a bookmark or a loadout now happens in a small window over the menu, rather than a text box sitting in the list. Type, press Enter, or press Escape to back out.
+- An action that cannot run yet is drawn greyed out with the reason above it, instead of accepting the click and then refusing. Anything that asks for a confirmation now shows plainly that it is waiting for one.
+
 ## 1.1.2
 
 ### Fixed
