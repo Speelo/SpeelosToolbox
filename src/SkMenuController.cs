@@ -326,6 +326,17 @@ namespace SkToolbox
         /// </summary>
         private void SampleInputState()
         {
+            if (!menuOpen)
+            {
+                // Nothing to sample while the menu is shut - and nothing safe to read, either. GUIUtility.keyboardControl
+                // below is a native call into Unity's IMGUI state, which does not exist on a headless server, so reading
+                // it there is an access violation rather than an exception. The && chain does not save us: `!held` is
+                // true whenever the look key is up, so the read happened on every single frame.
+                SkCommandPatcher.LookHeld = false;
+                SkCommandPatcher.WalkAllowed = false;
+                return;
+            }
+
             bool enabled = menuOpen
                 && !ZInput.IsGamepadActive() // a gamepad cannot look at all in this mode, so keep the old full block
                 && (Configuration.SkConfigEntry.OMenuWalk == null || Configuration.SkConfigEntry.OMenuWalk.Value);

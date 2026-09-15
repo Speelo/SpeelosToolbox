@@ -17,10 +17,22 @@ namespace SkToolbox
             AUTHOR = "Speelo",
             ORIGINAL_AUTHOR = "Skrip",
             GUID = "com.speelo.speelostoolbox",
-            VERSION = "1.1.1";
+            VERSION = "1.1.2";
 
         private void Start()
         {
+            // Speelo's Toolbox is a client-side menu and has nothing to offer a dedicated server. A server runs with
+            // -nographics -batchmode, where there is no graphics device, no camera, no cursor and no IMGUI state.
+            // Reading any of those from managed code does not raise a catchable NullReferenceException: it walks
+            // straight into native Unity with a null pointer and takes the whole process down, which is what v1.1.1
+            // did about two seconds into server startup. Nothing below is useful without a screen, so load nothing.
+            if (Application.isBatchMode
+                || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                Logger.LogInfo("Headless server detected - SpeelosToolbox is client-only, not loading.");
+                return;
+            }
+
             InitConfig();
             // Speelo's Toolbox: flip the achievement bypass as early as possible, before the player can spawn anything.
             SkCommandPatcher.ApplyAchievementBypass();

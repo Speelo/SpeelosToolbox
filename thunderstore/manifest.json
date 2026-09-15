@@ -1,8 +1,8 @@
 {
   "name": "SpeelosToolbox",
-  "version_number": "1.1.1",
+  "version_number": "1.1.2",
   "website_url": "https://github.com/Speelo/SpeelosToolbox",
-  "description": "Clickable in-game cheat menu for Valheim 1.0 (F6): items, creatures, world, character and display settings, plus the console commands. A maintained fork of Skrip's SkToolbox, rebuilt for 1.0 with a mouse-driven UI.",
+  "description": "Client-side only. Clickable in-game cheat menu for Valheim 1.0 (F6): items, creatures, world, character and display settings, plus the console commands. A maintained fork of Skrip's SkToolbox, rebuilt for 1.0.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350"
   ]

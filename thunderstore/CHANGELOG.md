@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+### Fixed
+
+- **1.1.1 crashed a dedicated server a couple of seconds into startup.** The menu sampled Unity's keyboard-focus state once a frame to work out whether you were typing, and did so before checking whether the menu was even open. On a headless server there is no interface state to read, and reading it anyway is not an error the game can catch - it takes the whole process down. The check now happens only while the menu is actually open. Clients are unaffected either way; nothing about the menu changes.
+- **The mod now refuses to load on a headless server at all**, and says so in the log. It is a client-side menu and has nothing to offer a server: the commands that change the world already reach the server through the game's own admin channel from your client. Installing it server-side was never doing anything, and now it fails politely instead of fatally.
+
 ## 1.1.1
 
 ### New
