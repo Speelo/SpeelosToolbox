@@ -116,7 +116,7 @@ namespace SkToolbox.SkModules
                    () => SkCommandProcessor.ProcessCommand("/findtomb", SkCommandProcessor.LogTo.Chat));
             Action(grid, "Info", "Bookmarks", "Save where you are standing, and teleport back to it later",
                    SkIcons.First("SurtlingCore", "Thunderstone"), ShowBookmarkForm);
-            Action(grid, "Info", "Loadouts", "Save what you are wearing, and put it all back on later",
+            Action(grid, "Info", "Loadouts", "Snapshot your whole inventory, and restore it later",
                    SkIcons.First("ArmorBronzeChest", "ArmorLeatherChest", "ArmorRagsChest"), ShowLoadoutForm);
 
             return grid;
@@ -282,8 +282,8 @@ namespace SkToolbox.SkModules
             {
                 Title = "Bookmarks",
                 Note = saved.Count > 0
-                    ? "Places you saved in this world. Type a name below to save where you are standing now."
-                    : "Nothing saved in this world yet. Type a name below and press Save here.",
+                    ? "Places you saved in this world."
+                    : "Nothing saved in this world yet. Press Save here to name your current spot.",
             };
             if (names.Count > 0)
             {
@@ -294,24 +294,27 @@ namespace SkToolbox.SkModules
                 form.Field("mark").Options.AddRange(names);
                 form.Field("mark").OptionLabels.AddRange(labels);
             }
-            form.Fields.Add(new SkMenuController.SkFormField
-            {
-                Id = "name", Label = "Name for a new bookmark", Kind = SkMenuController.SkFieldKind.Text, TextValue = "",
-            });
-
             form.Actions.Add(new SkMenuController.SkFormAction
             {
                 Label = "Save here",
-                Run = (SkMenuController.SkForm f) =>
+                // Asks for the name in a prompt over this form, rather than a text box sitting in it that has
+                // nothing to do with the list above it.
+                Run = (SkMenuController.SkForm f) => SkMC.ShowPrompt(new SkMenuController.SkPrompt
                 {
-                    Player lp = Player.m_localPlayer;
-                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
-                    string name = (f.Field("name").TextValue ?? "").Trim();
-                    if (name.Length == 0) { SkCommandProcessor.Notify("Give the bookmark a name first."); return; }
-                    SkCommandProcessor.Notify(SkBookmarks.Save(name, lp.transform.position)
-                        ? "Saved bookmark: " + name
-                        : "Load into a world first.");
-                },
+                    Title = "Save bookmark",
+                    Label = "A name for where you are standing.",
+                    Accept = "Save",
+                    OnAccept = (string name) =>
+                    {
+                        Player lp = Player.m_localPlayer;
+                        if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+                        if (name.Length == 0) { SkCommandProcessor.Notify("Give the bookmark a name first."); return; }
+                        SkCommandProcessor.Notify(SkBookmarks.Save(name, lp.transform.position)
+                            ? "Saved bookmark: " + name
+                            : "Load into a world first.");
+                        ShowBookmarkForm(); // rebuild so the new one is in the list
+                    },
+                }),
             });
             if (names.Count > 0)
             {
@@ -361,52 +364,76 @@ namespace SkToolbox.SkModules
             SkMenuController.SkForm form = new SkMenuController.SkForm
             {
                 Title = "Loadouts",
-                Note = "Saves what you have equipped by name and quality. Putting one back on only equips what you are "
-                     + "carrying, so after a death you need the gear back in your inventory first.",
+                Note = "Saves your whole inventory, not just what you are wearing: every stack, its size, quality, "
+                     + "durability and crafter, and which pieces were equipped. Loading one puts all of it back.",
             };
             if (names.Count > 0)
             {
+                form.Warning = "Loading a set REPLACES everything you are carrying.";
+                SkMenuController.SkFormField picker = new SkMenuController.SkFormField
+                {
+                    Id = "set", Label = "Saved sets", Kind = SkMenuController.SkFieldKind.Choice, Height = 150,
+                };
+                foreach (string entry in names)
+                {
+                    picker.Options.Add(entry);
+                    int count = SkLoadouts.CountOf(entry);
+                    picker.OptionLabels.Add(count >= 0
+                        ? entry + "     <color=#9FB6CC>" + count + " stacks</color>"
+                        : entry);
+                }
+                form.Fields.Add(picker);
                 form.Fields.Add(new SkMenuController.SkFormField
                 {
-                    Id = "set", Label = "Saved sets", Kind = SkMenuController.SkFieldKind.Choice, Height = 160,
+                    Id = "confirm",
+                    Label = "Replace what I am carrying",
+                    Kind = SkMenuController.SkFieldKind.Toggle,
                 });
-                form.Field("set").Options.AddRange(names);
             }
-            form.Fields.Add(new SkMenuController.SkFormField
-            {
-                Id = "name", Label = "Name for a new set", Kind = SkMenuController.SkFieldKind.Text, TextValue = "",
-            });
-
             form.Actions.Add(new SkMenuController.SkFormAction
             {
                 Label = "Save worn",
-                Run = (SkMenuController.SkForm f) =>
+                Run = (SkMenuController.SkForm f) => SkMC.ShowPrompt(new SkMenuController.SkPrompt
                 {
-                    Player lp = Player.m_localPlayer;
-                    if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
-                    string name = (f.Field("name").TextValue ?? "").Trim();
-                    if (name.Length == 0) { SkCommandProcessor.Notify("Give the set a name first."); return; }
-                    int count = SkLoadouts.Save(name, lp);
-                    SkCommandProcessor.Notify(count > 0
-                        ? "Saved " + count + " pieces as: " + name
-                        : "You are not wearing anything to save.");
-                },
+                    Title = "Save loadout",
+                    Label = "A name for your inventory as it is now.",
+                    Accept = "Save",
+                    OnAccept = (string name) =>
+                    {
+                        Player lp = Player.m_localPlayer;
+                        if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+                        if (name.Length == 0) { SkCommandProcessor.Notify("Give the set a name first."); return; }
+                        int count = SkLoadouts.Save(name, lp);
+                        SkCommandProcessor.Notify(count > 0
+                            ? "Saved " + count + " stacks as: " + name
+                            : "Your inventory is empty, nothing to save.");
+                        ShowLoadoutForm();
+                    },
+                }),
             });
             if (names.Count > 0)
             {
+                // Only the load is gated: saving and deleting cannot lose you anything you are holding.
+                form.Validate = (SkMenuController.SkForm f) =>
+                {
+                    SkMenuController.SkFormField box = f.Field("confirm");
+                    return (box != null && !box.BoolValue) ? "Switch the confirmation to ON to load a set." : null;
+                };
                 form.Actions.Add(new SkMenuController.SkFormAction
                 {
-                    Label = "Equip",
+                    Label = "Load set",
                     Run = (SkMenuController.SkForm f) =>
                     {
                         Player lp = Player.m_localPlayer;
                         string pick = f.Field("set").SelectedOption;
                         if (lp == null || string.IsNullOrEmpty(pick)) return;
-                        int on, missing;
-                        SkLoadouts.Restore(pick, lp, out on, out missing);
-                        SkCommandProcessor.Notify(missing > 0
-                            ? "Equipped " + on + ", missing " + missing
-                            : "Equipped " + on + " pieces.");
+                        int stacks, equipped;
+                        if (!SkLoadouts.Restore(pick, lp, out stacks, out equipped))
+                        {
+                            SkCommandProcessor.Notify("Could not read that set.");
+                            return;
+                        }
+                        SkCommandProcessor.Notify("Restored " + stacks + " stacks, " + equipped + " equipped.");
                     },
                 });
                 form.Actions.Add(new SkMenuController.SkFormAction

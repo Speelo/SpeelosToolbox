@@ -195,6 +195,43 @@ namespace SkToolbox
             }
         }
 
+        /// <summary>
+        /// A small modal asking for one piece of text, drawn OVER whatever is already on screen rather than
+        /// replacing it. Forms replace the tab content because IMGUI hands clicks to whatever was drawn first,
+        /// but a prompt can genuinely float: everything underneath is drawn disabled, so it takes no clicks, and
+        /// the prompt is drawn last and takes them all.
+        /// </summary>
+        public class SkPrompt
+        {
+            public string Title = "";
+            public string Label = "";
+            public string Accept = "Save";
+            public string Value = "";
+            public Action<string> OnAccept;
+        }
+
+        private SkPrompt activePrompt;
+        private bool promptNeedsFocus;
+        private const string PromptFieldName = "SkPromptField";
+
+        /// <summary>Opens the modal. It floats over the current tab or form until accepted or cancelled.</summary>
+        public void ShowPrompt(SkPrompt prompt)
+        {
+            if (prompt == null) return;
+            activePrompt = prompt;
+            promptNeedsFocus = true;
+            menuOpen = true;
+        }
+
+        public void ClosePrompt()
+        {
+            activePrompt = null;
+            promptNeedsFocus = false;
+            GUIUtility.keyboardControl = 0; // let the menu have the keyboard back
+        }
+
+        internal bool PromptOpen { get { return activePrompt != null; } }
+
         private SkForm activeForm;
 
         /// <summary>Opens a modal form. It replaces the tab content until an action runs or it is cancelled.</summary>
@@ -235,8 +272,8 @@ namespace SkToolbox
         private bool stylesReady = false;
         private float stylesAlpha = -1f;
         private GUIStyle styleWindow, styleItem, styleHeader, styleTip, styleSmall, styleBack, styleFilter;
-        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell, styleSectionBox, styleSectionHeader, styleTooltip, styleError, styleWarning;
-        private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip;
+        private GUIStyle styleTab, styleTabOn, styleClose, styleGridCell, styleSectionBox, styleSectionHeader, styleTooltip, styleError, styleWarning, stylePrompt;
+        private static Texture2D texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip, texPrompt;
 
         private static float ConfiguredOpacity =>
             SkConfigEntry.OMenuOpacity == null ? 0.96f : Mathf.Clamp(SkConfigEntry.OMenuOpacity.Value, 0.25f, 1f);
@@ -415,10 +452,11 @@ namespace SkToolbox
             {
                 if (menuOpen) CloseMenu(); else OpenMenu();
             }
-            // Speelo's Toolbox: Escape closes this menu instead of stacking the vanilla pause menu on top of it.
+            // Speelo's Toolbox: Escape closes this menu instead of stacking the vanilla pause menu on top of it,
+            // but a prompt gets first refusal - it is the innermost thing on screen.
             else if (menuOpen && KeyDown(KeyCode.Escape))
             {
-                CloseMenu();
+                if (activePrompt != null) ClosePrompt(); else CloseMenu();
             }
         }
 
@@ -444,6 +482,7 @@ namespace SkToolbox
         {
             menuOpen = false;
             activeForm = null;
+            activePrompt = null;
         }
 
         // ------------------------------------------------------------------ navigation
@@ -899,6 +938,76 @@ namespace SkToolbox
             return text.Length <= 7 ? text : text.Substring(0, 7);
         }
 
+        /// <summary>
+        /// The floating prompt. Centred, opaque, outlined, and drawn after everything else so it paints on top.
+        /// Enter accepts and Escape cancels, which is what anyone typing a name will try first.
+        /// </summary>
+        private void DrawPrompt()
+        {
+            SkPrompt prompt = activePrompt;
+            float width = Mathf.Min(380f, Mathf.Max(220f, windowRect.width - 80f));
+            float height = 152f;
+            Rect area = new Rect((windowRect.width - width) / 2f, (windowRect.height - height) / 2f, width, height);
+
+            GUI.Box(area, GUIContent.none, stylePrompt);
+            DrawOutline(area, new Color(0.42f, 0.54f, 0.70f), 2f);
+
+            GUILayout.BeginArea(new Rect(area.x + 14f, area.y + 12f, area.width - 28f, area.height - 24f));
+            GUILayout.Label(prompt.Title, styleHeader);
+            if (!string.IsNullOrEmpty(prompt.Label))
+            {
+                GUILayout.Label(prompt.Label, styleSmall);
+            }
+            GUILayout.Space(4f);
+
+            GUI.SetNextControlName(PromptFieldName);
+            prompt.Value = GUILayout.TextField(prompt.Value ?? "", styleFilter);
+            if (promptNeedsFocus && Event.current.type == EventType.Repaint)
+            {
+                GUI.FocusControl(PromptFieldName); // so the player can just start typing
+                promptNeedsFocus = false;
+            }
+
+            GUILayout.Space(10f);
+            GUILayout.BeginHorizontal();
+            bool accept = GUILayout.Button(prompt.Accept, styleItem, GUILayout.Height(27f));
+            GUILayout.Space(8f);
+            bool cancel = GUILayout.Button("Cancel", styleBack, GUILayout.Height(27f));
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+
+            // Keyboard shortcuts, read before the buttons so a held Return does not double-fire.
+            Event e = Event.current;
+            if (e != null && e.type == EventType.KeyDown)
+            {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { accept = true; e.Use(); }
+                else if (e.keyCode == KeyCode.Escape) { cancel = true; e.Use(); }
+            }
+
+            if (accept)
+            {
+                SkPrompt captured = prompt;
+                string typed = (prompt.Value ?? "").Trim();
+                pendingAction = () =>
+                {
+                    ClosePrompt();
+                    if (captured.OnAccept != null)
+                    {
+                        try { captured.OnAccept(typed); }
+                        catch (Exception ex)
+                        {
+                            SkUtilities.Logz(new string[] { "PROMPT", "ERROR" }, new string[] { ex.Message }, LogType.Error);
+                            SkCommandProcessor.Notify("That failed: " + ex.Message);
+                        }
+                    }
+                };
+            }
+            else if (cancel)
+            {
+                pendingAction = ClosePrompt;
+            }
+        }
+
         /// <summary>Renders the active form: title, one block per field, then its action buttons.</summary>
         private void DrawForm()
         {
@@ -1296,11 +1405,18 @@ namespace SkToolbox
             // Floating tooltip that follows the cursor. Fully opaque regardless of MenuOpacity, since it sits over
             // the menu's own content and has to stay readable.
             styleTooltip = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, richText = true };
+            texPrompt = MakeTex(new Color(0.09f, 0.11f, 0.15f, 1f));
             texTooltip = MakeTex(new Color(0.03f, 0.04f, 0.06f, 0.98f));
             styleTooltip.normal.background = texTooltip;
             styleTooltip.border = new RectOffset(0, 0, 0, 0);
             styleTooltip.padding = new RectOffset(8, 8, 6, 6);
             styleTooltip.normal.textColor = new Color(0.96f, 0.93f, 0.72f);
+
+            // Opaque regardless of MenuOpacity: a prompt sits over the menu's own content and has to read as
+            // a separate surface, not a smudge of it.
+            stylePrompt = new GUIStyle(GUI.skin.box);
+            stylePrompt.normal.background = texPrompt;
+            stylePrompt.border = new RectOffset(0, 0, 0, 0);
 
             styleSectionBox = new GUIStyle(GUI.skin.box);
             styleSectionBox.normal.background = texPanel;
@@ -1322,14 +1438,14 @@ namespace SkToolbox
 
         private static void ReleaseTextures()
         {
-            foreach (Texture2D tex in new Texture2D[] { texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip })
+            foreach (Texture2D tex in new Texture2D[] { texWindow, texPanel, texItem, texItemHover, texItemActive, texAccent, texWhite, texTooltip, texPrompt })
             {
                 if (tex != null)
                 {
                     UnityEngine.Object.DestroyImmediate(tex);
                 }
             }
-            texWindow = texPanel = texItem = texItemHover = texItemActive = texAccent = texWhite = texTooltip = null;
+            texWindow = texPanel = texItem = texItemHover = texItemActive = texAccent = texWhite = texTooltip = texPrompt = null;
         }
 
         private static void Paint(GUIStyle style, Texture2D normal, Texture2D hover, Texture2D active, Color text)
@@ -1393,6 +1509,12 @@ namespace SkToolbox
                     GUI.tooltip = string.Empty;
                 }
 
+                // A prompt makes everything behind it inert. Disabled IMGUI controls do not take clicks, so the
+                // layout below still draws normally and simply cannot be interacted with.
+                bool blocked = activePrompt != null;
+                bool wasEnabled = GUI.enabled;
+                if (blocked) GUI.enabled = false;
+
                 // Layout, top to bottom. Each section is its own method so the arrangement can be changed
                 // without touching the others.
                 DrawCloseButton();
@@ -1400,8 +1522,13 @@ namespace SkToolbox
                 if (activeForm != null)
                 {
                     DrawForm();
+                    if (blocked)
+                    {
+                        GUI.enabled = wasEnabled;
+                        DrawPrompt();
+                    }
                     DrawCursorTooltip();
-                    GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));
+                    if (!blocked) GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));
                     return;
                 }
 
@@ -1411,7 +1538,14 @@ namespace SkToolbox
                 DrawSliderRow();
                 DrawItemList();
                 DrawFooter();
+                if (blocked)
+                {
+                    GUI.enabled = wasEnabled;
+                    DrawPrompt();
+                }
                 DrawCursorTooltip(); // last, so it sits above every other control
+
+                if (blocked) return; // the window must not drag while a prompt owns the clicks
 
                 // Everything except the close button's corner drags the window.
                 GUI.DragWindow(new Rect(0f, 0f, Mathf.Max(0f, windowRect.width - 36f), 26f));
