@@ -15,6 +15,12 @@ namespace SkToolbox
         // input block installed by PatchMenuKeyDown/PatchMenuButtonDown below.
         internal static bool BypassInputBlock = false;
 
+        // Speelo's Toolbox: walking with the menu open. Sampled once per frame by SkMenuController.SampleInputState
+        // and only read from here, so the input patch and the cursor patch cannot disagree inside one frame - Harmony
+        // gives no ordering guarantee between patch classes, so each polling the key itself would be a race.
+        internal static bool LookHeld = false;
+        internal static bool WalkAllowed = false;
+
         private static bool bCheat = false;
         private static bool bFreeSupport = false;
         public static bool bBuildAnywhere = false;
@@ -224,26 +230,50 @@ namespace SkToolbox
         [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateMouseCapture))]
         private static class PatchMenuMouseCapture
         {
+            private static Vector2 savedPointer;
+            private static bool cursorWasHeld;
+
             private static void Prefix(ref bool ___m_mouseCapture, out bool __state)
             {
                 __state = ___m_mouseCapture;
                 if (SkMenuController.IsOpen)
                 {
-                    ___m_mouseCapture = false;
+                    // While the look key is held we want the game's own capture path, which locks and hides the
+                    // cursor for mouse look. Otherwise suppress it so the cursor stays free for the menu.
+                    ___m_mouseCapture = LookHeld;
                 }
             }
 
             private static void Postfix(ref bool ___m_mouseCapture, bool __state)
             {
-                if (SkMenuController.IsOpen)
+                if (!SkMenuController.IsOpen) return;
+
+                if (LookHeld)
                 {
-                    // Restore what the player's own Ctrl+F1 toggle had set, so closing the menu does not leave the
-                    // cursor free for ever. The toggle itself runs at the top of UpdateMouseCapture, against the
-                    // false the prefix just wrote, so a field that came back true means the player pressed Ctrl+F1
-                    // this frame and wants the opposite of what they had. Restoring __state flatly would eat it.
-                    ___m_mouseCapture = ___m_mouseCapture ? !__state : __state;
-                    ZCursor.LockState = UnityEngine.CursorLockMode.None;
-                    ZCursor.Show();
+                    // Locking recentres the pointer, so remember where it was before the first locked frame.
+                    if (!cursorWasHeld)
+                    {
+                        cursorWasHeld = true;
+                        savedPointer = ZInput.pointerPosition;
+                    }
+                    ___m_mouseCapture = __state; // the field is ours this frame; give the player's setting back
+                    return;                      // and leave the game's Locked + Hide standing
+                }
+
+                // Restore what the player's own Ctrl+F1 toggle had set, so closing the menu does not leave the
+                // cursor free for ever. The toggle itself runs at the top of UpdateMouseCapture, against the value
+                // the prefix just wrote, so a field that came back true means the player pressed Ctrl+F1 this frame
+                // and wants the opposite of what they had. Restoring __state flatly would eat it.
+                ___m_mouseCapture = ___m_mouseCapture ? !__state : __state;
+                ZCursor.LockState = UnityEngine.CursorLockMode.None;
+                ZCursor.Show();
+
+                if (cursorWasHeld)
+                {
+                    // Unlocked above, so the warp is legal now; without this the pointer would come back at the
+                    // centre of the screen every time the look key was released.
+                    cursorWasHeld = false;
+                    ZInput.SetMousePosition(savedPointer);
                 }
             }
         }
@@ -271,12 +301,15 @@ namespace SkToolbox
         [HarmonyPatch(typeof(PlayerController), "TakeInput", new Type[] { typeof(bool) })]
         private static class PatchMenuPlayerControllerInput
         {
-            private static void Postfix(ref bool __result)
+            // The bool is the game's own "is this the camera or the body" flag: FixedUpdate asks with look:false for
+            // movement, LateUpdate asks with look:true for mouse look. Splitting on it is what lets the menu hand
+            // back walking while keeping the camera still. Both flags are false when the feature is off or a gamepad
+            // is active, which is exactly the old behaviour of refusing everything.
+            private static void Postfix(bool look, ref bool __result)
             {
-                if (SkMenuController.IsOpen)
-                {
-                    __result = false;
-                }
+                if (!SkMenuController.IsOpen) return;
+                if (!__result) return; // vanilla already refused, for its own reasons - do not override that
+                __result = look ? LookHeld : WalkAllowed;
             }
         }
 

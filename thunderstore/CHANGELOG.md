@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+
+- **Kill Enemies destroyed every creature spawner nearby.** The game's `killenemies` kills the creatures and then sweeps every spawner in the scene with no distance check, so a button described as "kill every hostile creature nearby" was permanently removing greydwarf nests and draugr piles across every loaded zone, for everyone on the world. It now runs `killenemycreatures`, which stops at the creatures. The old behaviour is still available as **Kill Enemies & Nests**, which says what it does and asks first.
+- **Your cheats no longer switch off when you die.** Dying does not reset your character, it replaces it: the game destroys the old one and builds a new one from the prefab, so god mode, flying, no cost building, ghost, infinite stamina and far interact were all silently lost on every respawn while the menu still showed some of them as on. Whatever you had switched on is switched back on once you respawn, and if you turned something off in Valheim's own console, that is respected rather than undone. Set `PersistCheatsOnDeath` to false in the config to let each death clear them instead.
+- **Status Effects did nothing on someone else's server.** It ran the game's `addstatus`, which is admin-gated, while the button claimed to be a client-side action. Status effects are local, so it now applies them directly and the marker is honest.
+- Infinite Stamina flipped its own switch before reading it, so after a respawn the first click turned it off and it took two clicks to turn back on. It was also the one toggle with no check for a missing player, so clicking it during the seconds you are dead threw an error. `/farinteract` had both faults and is fixed the same way; the reach you pick is remembered, so a respawn restores it.
+- Walking while over the carry limit no longer drains stamina with Infinite Stamina on. This also removes a trap where being encumbered with no stamina left stopped you moving at all.
+- Infinite Stamina's description claimed stamina never drains. Attacks, jumps and dodges always cost stamina, so it now says what it actually does.
+
+### New
+
+- **Eight commands the toolbox already had are now buttons**, instead of being reachable only by typing them into the console: **No Support Needed** (the partner to Build Anywhere), **Ghost**, **Reach**, **Tweaks**, **Clear Inventory**, **Find Tombstone** and **Who's Online**.
+- **Tweaks** covers carry weight, auto pickup range, jump force, run and swim speed, and the map reveal radius. These are restored after you die, which they never were through the old `/set` command. Defaults puts back the values your game actually started with rather than hard-coded numbers, so another mod's tuning survives.
+- Actions that destroy something now lead with a red warning saying so, above everything else on the form. Clear Inventory spells out that equipped gear and extra slots go too, that nothing is dropped and no tombstone is left, and asks you to tick a box that says you understand before the button will do anything.
+
 ## 1.1.0
 
 Includes everything from 1.0.1, which was never published separately.

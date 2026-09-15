@@ -319,8 +319,61 @@ namespace SkToolbox
             toggleKey = KeyCode.F6;
         }
 
+        /// <summary>
+        /// One sample per frame of "can the player walk" and "is the look key down", read by the input and cursor
+        /// patches. Taken here rather than in each patch because Harmony does not order patch classes, so two of them
+        /// polling the key separately could disagree within a frame and leave the cursor and the camera out of step.
+        /// </summary>
+        private void SampleInputState()
+        {
+            bool enabled = menuOpen
+                && !ZInput.IsGamepadActive() // a gamepad cannot look at all in this mode, so keep the old full block
+                && (Configuration.SkConfigEntry.OMenuWalk == null || Configuration.SkConfigEntry.OMenuWalk.Value);
+
+            bool held = enabled && ZInput.GetKey(LookKey, false);
+
+            // A press of the look key that landed on a search box will have focused it, and a focused field stops
+            // movement. Clearing on the release edge means a look never leaves the player unable to walk.
+            if (!held && SkCommandPatcher.LookHeld)
+            {
+                GUIUtility.keyboardControl = 0;
+            }
+
+            SkCommandPatcher.LookHeld = held;
+
+            // Typing must not drive the character. While the cursor is captured for a look the player demonstrably
+            // is not typing, so focus is ignored then.
+            bool typing = !held && GUIUtility.keyboardControl != 0;
+            SkCommandPatcher.WalkAllowed = enabled && !typing;
+
+            if (enabled)
+            {
+                // Valheim's own "move but do nothing else" state: with this armed, PlayerController passes the move
+                // vector through and forces attack, block, jump and crouch to false. FixedUpdate decays it, so it is
+                // re-armed every frame. The tail that outlives closing the menu is what stops a click landing as a
+                // swing the instant the menu goes away.
+                PlayerController.SetTakeInputDelay(0.25f);
+            }
+        }
+
+        /// <summary>The configured hold-to-look key, falling back to the right mouse button.</summary>
+        private static KeyCode LookKey
+        {
+            get
+            {
+                string name = Configuration.SkConfigEntry.OMenuLookKey != null
+                    ? Configuration.SkConfigEntry.OMenuLookKey.Value
+                    : null;
+                if (string.IsNullOrEmpty(name)) return KeyCode.Mouse1;
+                try { return (KeyCode)Enum.Parse(typeof(KeyCode), name, true); }
+                catch (Exception) { return KeyCode.Mouse1; }
+            }
+        }
+
         void Update()
         {
+            SampleInputState(); // before every early return below, so the flags are never left stale
+
             if (initialCheck) // It takes a frame to load the components. Attempt to load menu options in second frame.
             {
                 if (menuOptions == null || menuOptions.Count == 0)

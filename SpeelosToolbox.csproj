@@ -14,7 +14,7 @@
 
     <AssemblyName>SpeelosToolbox</AssemblyName>
     <RootNamespace>SkToolbox</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Authors>Speelo, Skrip, derekShaheen</Authors>
     <Description>Speelo's Toolbox: clickable cheat menu and console/chat command extender for Valheim 1.0 (fork of Skrip's SkToolbox)</Description>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>

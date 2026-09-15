@@ -17,7 +17,7 @@ namespace SkToolbox
             AUTHOR = "Speelo",
             ORIGINAL_AUTHOR = "Skrip",
             GUID = "com.speelo.speelostoolbox",
-            VERSION = "1.1.0";
+            VERSION = "1.1.1";
 
         private void Start()
         {
@@ -99,6 +99,18 @@ namespace SkToolbox
                     "\nAlready taken: F11 and F12 take screenshots (Valheim and Steam), F5 opens the game console, F4 opens this mod's log console," +
                     " F2 opens the connect panel, F9 cycles the controller layout, Ctrl+F1 toggles mouse capture, Ctrl+F3 hides the HUD." +
                     "\nFree function keys: F6, F7, F8, F10.");
+                SkConfigEntry.OMenuWalk = Config.Bind("4 - OnScreenMenu", "WalkWithMenuOpen", true
+                    , "Let you walk around with the menu open, instead of freezing you in place." +
+                    "\nWASD moves as normal. Attacking, blocking, jumping and dodging stay switched off, which is the" +
+                    " same state the game puts you in for a moment after closing its own menus." +
+                    "\nTyping in a search box moves nothing. Hold the look key below to turn the camera." +
+                    "\nThis is keyboard and mouse only: with a gamepad active the menu freezes you as before.");
+                SkConfigEntry.OMenuLookKey = Config.Bind("4 - OnScreenMenu", "MenuLookKey", "Mouse1"
+                    , "Hold this to turn the camera while the menu is open. Release it to get the cursor back." +
+                    "\nMouse1 is the right mouse button. It is safe to use even though it is normally block, because" +
+                    " blocking is switched off while the menu is open." +
+                    "\nLeftAlt is a good alternative if you would rather leave the right button alone." +
+                    "\nValid key names: https://docs.unity3d.com/ScriptReference/KeyCode.html");
                 SkConfigEntry.OMenuOpacity = Config.Bind("4 - OnScreenMenu", "MenuOpacity", 0.96f
                     , "How solid the menu background is. 1 = fully opaque, 0.5 = half see-through. Takes effect immediately.");
 
