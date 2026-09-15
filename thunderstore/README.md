@@ -4,7 +4,9 @@ A clickable in-game cheat menu for Valheim 1.0, plus a console and chat command 
 
 Based on Skrip's SkToolbox ([Nexus](https://www.nexusmods.com/valheim/mods/8), source by derekShaheen on [GitHub](https://github.com/derekShaheen/SkToolbox-for-Valheim)), rebuilt for Valheim 1.0.7 and given a mouse-driven interface. GPL-3.0.
 
-**This is a client-side mod. Do not install it on a dedicated server.** It is a menu, and a server has no screen to draw one on. Installed on a client it works normally whether you play alone, host a world, or join someone else's; the buttons say which of those they need.
+**This is a client-side mod. It does not belong on a dedicated server** - it is a menu, and a server has no screen to draw one on. **If you have it installed on a server, remove it:** version 1.1.1 crashed servers on startup, and 1.1.2 refuses to load there and logs a line saying so. You lose nothing by removing it; the commands that change shared world state already reach the server from your client through the game's own admin channel.
+
+On a client it works normally whether you play alone, host a world, or join someone else's - each button's hover tip says which of those it needs.
 
 Use discretion in multiplayer. These commands change your character and the world around you, and other players will notice.
 
