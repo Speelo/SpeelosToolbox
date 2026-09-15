@@ -256,8 +256,12 @@ namespace SkToolbox.SkModules
                      SkIcons.First("Barley", "Carrot"), () => Run("/seed"), SkScope.Client),
 
                 // -------- cleanup
-                Cell("Cleanup", "Kill Enemies", "Kill every hostile creature nearby",
-                     SkIcons.First("SwordIron", "SwordBronze", "AxeStone"), () => SkRun.CmdNotify("killenemies", "Killed nearby enemies."), SkScope.Server),
+                // killenemycreatures kills creatures and stops there. Its sibling killenemies also sweeps every
+                // SpawnArea in the scene with no distance test, which is why that one lives behind a confirmation.
+                Cell("Cleanup", "Kill Enemies", "Kill every hostile creature nearby. Leaves their nests alone",
+                     SkIcons.First("SwordIron", "SwordBronze", "AxeStone"), () => SkRun.CmdNotify("killenemycreatures", "Killed nearby enemies."), SkScope.Server),
+                Cell("Cleanup", "Kill Enemies & Nests", "Also destroys every creature spawner in every loaded zone, permanently",
+                     SkIcons.First("PickaxeIron", "SledgeStagbreaker", "Club"), ShowKillSpawnersForm, SkScope.Server),
                 Cell("Cleanup", "Kill Tame", "Kill every tamed creature nearby",
                      SkIcons.First("Carrot", "Raspberry"), () => SkRun.CmdNotify("killtame", "Killed nearby tame creatures."), SkScope.Server),
                 Cell("Cleanup", "Remove Drops", "Clear dropped items in the area",
@@ -547,6 +551,25 @@ namespace SkToolbox.SkModules
             values.AddRange(sortedValues);
             labels.Clear();
             labels.AddRange(sortedLabels);
+        }
+
+        /// <summary>
+        /// The game's killenemies runs a FindObjectsByType&lt;SpawnArea&gt; sweep with no distance check, so it wipes out
+        /// every greydwarf nest and draugr pile in every loaded zone, for everyone, with no way back. That is a long
+        /// way from what a button called "kill nearby enemies" implies, so it asks first.
+        /// </summary>
+        private void ShowKillSpawnersForm()
+        {
+            SkMenuController.SkForm form = NewForm("Kill Enemies & Nests",
+                "Kills nearby enemies and destroys every creature spawner in every loaded zone. Spawners do not come back, and everyone on the world loses them.");
+            form.Fields.Add(ConfirmBox("Destroy the spawners too"));
+            form.Validate = ConfirmRequired;
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Kill and destroy",
+                Run = (SkMenuController.SkForm f) => SkRun.CmdNotify("killenemies", "Killed nearby enemies and their spawners."),
+            });
+            SkMC.ShowForm(form);
         }
 
         // ------------------------------------------------------------------ rules

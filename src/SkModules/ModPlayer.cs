@@ -321,6 +321,9 @@ namespace SkToolbox.SkModules
                 Note = "Adds one effect at its normal duration. Clearing removes everything you currently have, food included.",
             };
             form.Fields.Add(picker);
+            // Both buttons do the work directly rather than through addstatus / clearstatus. addstatus is registered
+            // with the failable constructor and onlyAdmin, which folds into OnlyServer, so running it as a client on
+            // someone else's server is refused - and status effects are purely local, so there is nothing to forward.
             form.Actions.Add(new SkMenuController.SkFormAction
             {
                 Label = "Add effect",
@@ -328,7 +331,13 @@ namespace SkToolbox.SkModules
                 {
                     string name = f.Field("status").SelectedOption;
                     if (string.IsNullOrEmpty(name)) return;
-                    SkRun.Cmd("addstatus " + name);
+                    Player target = Player.m_localPlayer;
+                    if (target == null)
+                    {
+                        SkCommandProcessor.Notify("No player yet.");
+                        return;
+                    }
+                    target.GetSEMan().AddStatusEffect(name.GetStableHashCode(), true, 0, 0f, -1);
                     SkCommandProcessor.Notify("Added " + name);
                 },
             });
@@ -337,7 +346,14 @@ namespace SkToolbox.SkModules
                 Label = "Clear all",
                 Run = (SkMenuController.SkForm f) =>
                 {
-                    SkRun.Cmd("clearstatus");
+                    Player target = Player.m_localPlayer;
+                    if (target == null)
+                    {
+                        SkCommandProcessor.Notify("No player yet.");
+                        return;
+                    }
+                    target.ClearHardDeath();
+                    target.GetSEMan().RemoveAllStatusEffects();
                     SkCommandProcessor.Notify("Cleared status effects.");
                 },
             });
