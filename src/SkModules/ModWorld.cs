@@ -253,6 +253,8 @@ namespace SkToolbox.SkModules
                      SkIcons.First("Stone", "Wood"), () => SkRun.Show("Loaded Locations", "printlocations", "No locations are loaded."), SkScope.Client),
                 Cell("Travel", "Reveal Map", "Explore the entire minimap",
                      SkIcons.First("Torch"), () => Run("/revealmap"), SkScope.Client),
+                Cell("Travel", "Reveal Around Me", "Explore the map out to a distance you choose, rather than all of it",
+                     SkIcons.First("Coal", "Resin"), ShowRevealForm, SkScope.Client),
                 Cell("Travel", "Reset Map", "Erase map exploration",
                      SkIcons.First("Coins", "Ruby"), () => Run("/resetmap"), SkScope.Client),
                 Cell("Travel", "List Portals", "Print every portal tag",
@@ -703,6 +705,57 @@ namespace SkToolbox.SkModules
             {
                 SkCommandProcessor.Notify(fill ? "Nothing nearby needed fuel." : "Nothing nearby was lit.");
             }
+        }
+
+        /// <summary>
+        /// Uncovers the map around the player out to a chosen distance, for anyone who wants the fog gone locally
+        /// without handing themselves the whole world.
+        ///
+        /// Minimap does the work in a private Explore(Vector3, float), so it comes in by reflection. The explicit
+        /// signature matters: Explore is overloaded, and the other one takes two ints.
+        /// </summary>
+        private static System.Reflection.MethodInfo exploreAround;
+
+        private void ShowRevealForm()
+        {
+            if (Player.m_localPlayer == null || Minimap.instance == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            SkMenuController.SkForm form = NewForm("Reveal Around Me",
+                "Uncovers the map out to this distance from where you are standing. The whole world is about 10000 across, so a few hundred is a comfortable walk.");
+            form.Fields.Add(Slider("radius", "Distance", 50, 3000, 500));
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Reveal",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null || Minimap.instance == null) { SkCommandProcessor.Notify("No player yet."); return; }
+
+                    if (exploreAround == null)
+                    {
+                        exploreAround = typeof(Minimap).GetMethod(
+                            "Explore",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                            null,
+                            new Type[] { typeof(Vector3), typeof(float) },
+                            null);
+                    }
+                    if (exploreAround == null)
+                    {
+                        SkCommandProcessor.Notify("This build of the game does not expose a partial map reveal.");
+                        return;
+                    }
+
+                    int radius = f.Field("radius").IntValue;
+                    exploreAround.Invoke(Minimap.instance, new object[] { lp.transform.position, (float)radius });
+                    SkCommandProcessor.Notify("Revealed the map within " + radius + "m.");
+                },
+            });
+            SkMC.ShowForm(form);
         }
 
         // ------------------------------------------------------------------ rules
