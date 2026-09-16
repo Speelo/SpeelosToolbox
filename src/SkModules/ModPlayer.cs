@@ -99,6 +99,8 @@ namespace SkToolbox.SkModules
             Action(grid, "Cheats", "Reach", "Interact with and place things from far away",
                    SkIcons.First("Chain", "LeatherScraps"), ShowReachForm);
             Action(grid, "Cheats", "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame, SkScope.Server);
+            Action(grid, "Cheats", "Guardian Power", "Choose a boss power, use it now, or clear its cooldown",
+                   SkIcons.First("TrophyEikthyr", "Wishbone"), ShowPowerForm);
             Action(grid, "Cheats", "Status Effects", "Apply a status effect, or clear the ones you have",
                    SkIcons.First("MeadFrostResist", "MeadPoisonResist", "MeadHealthMinor"), ShowStatusForm);
 
@@ -255,6 +257,131 @@ namespace SkToolbox.SkModules
             if (skills == null) return;
             skills.CheatResetSkill(name == "All" ? "all" : name);
             SkCommandProcessor.Notify((name == "All" ? "All skills" : name) + " reset to zero");
+        }
+
+        // ------------------------------------------------------------------ guardian power
+
+        /// <summary>
+        /// Boss powers. Set one without visiting its stone, fire it regardless of cooldown, or just clear the
+        /// cooldown after using it normally.
+        ///
+        /// Calls the player directly rather than the setpower command: that one is admin-gated, so it is refused
+        /// for a client on someone else's server, and a guardian power is entirely local to you.
+        /// </summary>
+        private void ShowPowerForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            List<string> names = new List<string>();
+            List<string> labels = new List<string>();
+            ObjectDB db = ObjectDB.instance;
+            if (db != null && db.m_StatusEffects != null)
+            {
+                foreach (StatusEffect effect in db.m_StatusEffects)
+                {
+                    // Guardian powers are the GP_ prefixed status effects; everything else in here is a buff.
+                    if (effect == null || string.IsNullOrEmpty(effect.name)) continue;
+                    if (!effect.name.StartsWith("GP_", StringComparison.OrdinalIgnoreCase)) continue;
+                    names.Add(effect.name);
+                    labels.Add(effect.name + Blurb(effect));
+                }
+            }
+            if (names.Count == 0)
+            {
+                SkCommandProcessor.Notify("Power list is not available yet. Load into a world first.");
+                return;
+            }
+
+            string current = player.GetGuardianPowerName();
+            float cooldown = player.m_guardianPowerCooldown;
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Guardian Power",
+                Note = "The power you would normally get by praying at a boss stone. Setting one replaces whatever you have.",
+            };
+            form.Fields.Add(new SkMenuController.SkFormField
+            {
+                Id = "now",
+                Label = "Right now",
+                Kind = SkMenuController.SkFieldKind.Info,
+                Height = 44,
+                TextValue = (string.IsNullOrEmpty(current) ? "No power set." : "Power: " + current)
+                          + (cooldown > 0f ? "     Ready in " + Mathf.CeilToInt(cooldown) + "s" : "     Ready now"),
+            });
+            SkMenuController.SkFormField picker = new SkMenuController.SkFormField
+            {
+                Id = "power", Label = "Power", Kind = SkMenuController.SkFieldKind.Choice, Height = 170,
+            };
+            picker.Options.AddRange(names);
+            picker.OptionLabels.AddRange(labels);
+            form.Fields.Add(picker);
+
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Set power",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    string pick = f.Field("power").SelectedOption;
+                    if (lp == null || string.IsNullOrEmpty(pick)) return;
+                    lp.SetGuardianPower(pick);
+                    lp.m_guardianPowerCooldown = 0f;
+                    SkCommandProcessor.Notify("Power set: " + pick);
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Use now",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) return;
+                    // Clear first: StartGuardianPower refuses outright while the cooldown is running.
+                    lp.m_guardianPowerCooldown = 0f;
+                    if (!lp.StartGuardianPower())
+                    {
+                        SkCommandProcessor.Notify("Could not use it - set a power first, or wait until you are not mid-swing.");
+                    }
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Clear cooldown",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    Player lp = Player.m_localPlayer;
+                    if (lp == null) return;
+                    lp.m_guardianPowerCooldown = 0f;
+                    SkCommandProcessor.Notify("Power is ready again.");
+                },
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>The power's own display name, which reads better than the prefab name alone.</summary>
+        private static string Blurb(StatusEffect effect)
+        {
+            try
+            {
+                if (Localization.instance != null && !string.IsNullOrEmpty(effect.m_name))
+                {
+                    string localized = Localization.instance.Localize(effect.m_name);
+                    if (!string.IsNullOrEmpty(localized) && !localized.StartsWith("["))
+                    {
+                        return "     <color=#9FB6CC>" + localized + "</color>";
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return "";
         }
 
         // ------------------------------------------------------------------ bookmarks and loadouts
