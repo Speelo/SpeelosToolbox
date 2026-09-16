@@ -69,8 +69,12 @@ namespace SkToolbox
                 lp.m_staminaRegenDelay = 0.05f;
                 lp.m_staminaRegen = 999f;
                 lp.m_runStaminaDrain = 0f;
-                // Carrying too much charges stamina every moment you are moving, separately from running.
-                lp.m_encumberedStaminaDrain = 0f;
+                // Each of these charges stamina every frame you keep moving, and a continuous drain resets the
+                // regen delay before regen ever runs - which is why a huge regen rate does not outrun them.
+                lp.m_encumberedStaminaDrain = 0f;   // over the carry limit
+                lp.m_swimStaminaDrainMinSkill = 0f; // swimming, lerped between these two by the Swim skill
+                lp.m_swimStaminaDrainMaxSkill = 0f;
+                lp.m_sneakStaminaDrain = 0f;        // crouched and moving
             }
             else if (applyOffValues)
             {
@@ -78,6 +82,9 @@ namespace SkToolbox
                 lp.m_staminaRegen = 5f;
                 lp.m_runStaminaDrain = 10f;
                 lp.m_encumberedStaminaDrain = 10f;
+                lp.m_swimStaminaDrainMinSkill = 5f;
+                lp.m_swimStaminaDrainMaxSkill = 2f;
+                lp.m_sneakStaminaDrain = 5f;
             }
         }
 
