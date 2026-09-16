@@ -186,6 +186,8 @@ namespace SkToolbox.SkModules
                      SkIcons.First("Hoe"), ShowTerrain, SkScope.Server),
                 Cell("Building", "Repair Nearby", "Repair every building piece around you",
                      SkIcons.First("Hammer"), ShowRepairForm, SkScope.Server),
+                Cell("Building", "Refuel Fires", "Top up every torch, fire and hearth around you",
+                     SkIcons.First("Resin", "Coal"), ShowRefuelForm, SkScope.Server),
 
                 Cell("Terrain", "Optimize Terrain", "Compact old terrain edits to help performance",
                      SkIcons.First("PickaxeIron", "PickaxeStone", "PickaxeAntler"), () => Run("/optterrain"), SkScope.Server),
@@ -627,6 +629,80 @@ namespace SkToolbox.SkModules
                 },
             });
             SkMC.ShowForm(form);
+        }
+
+        /// <summary>
+        /// Fills every fireplace in range to its own maximum, whatever fuel it burns - resin for torches, wood for
+        /// hearths and bonfires.
+        ///
+        /// Calls Fireplace.SetFuel rather than the setfuel command for three reasons: setfuel has no radius and
+        /// hits every fireplace in the world, it sets a flat number so it would drain a bonfire while filling a
+        /// torch, and it is admin-gated so a client on someone else's server is refused. SetFuel clamps to each
+        /// piece's own maximum and RPCs the owner, so it works on other people's fires too.
+        /// </summary>
+        private void ShowRefuelForm()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+
+            SkMenuController.SkForm form = NewForm("Refuel Fires",
+                "Tops up torches, fires, hearths and bonfires around you, each to its own maximum. Ones already full are left alone.");
+            form.Fields.Add(Slider("radius", "Radius", 5, 100, 30));
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Fill nearby",
+                Run = (SkMenuController.SkForm f) => Refuel(f.Field("radius").IntValue, true),
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Put out",
+                Run = (SkMenuController.SkForm f) => Refuel(f.Field("radius").IntValue, false),
+            });
+            SkMC.ShowForm(form);
+        }
+
+        private static void Refuel(float radius, bool fill)
+        {
+            Player lp = Player.m_localPlayer;
+            if (lp == null) { SkCommandProcessor.Notify("No player yet."); return; }
+
+            Vector3 origin = lp.transform.position;
+            int changed = 0;
+
+            Fireplace[] fires = UnityEngine.Object.FindObjectsByType<Fireplace>(FindObjectsSortMode.None);
+            foreach (Fireplace fire in fires)
+            {
+                if (fire == null) continue;
+                if (Vector3.Distance(fire.transform.position, origin) > radius) continue;
+                try
+                {
+                    // Reading the current level keeps the count honest: SetFuel quietly does nothing when the
+                    // value already matches, so counting every fire in range would overstate it.
+                    ZNetView view = SkUtilities.GetPrivateField<ZNetView>(fire, "m_nview");
+                    if (view == null || !view.IsValid()) continue;
+                    float now = view.GetZDO().GetFloat(ZDOVars.s_fuel);
+                    float target = fill ? fire.m_maxFuel : 0f;
+                    if (Mathf.Approximately(now, target)) continue;
+                    fire.SetFuel(target);
+                    changed++;
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            if (changed > 0)
+            {
+                SkCommandProcessor.Notify((fill ? "Filled " : "Put out ") + changed + " nearby.");
+            }
+            else
+            {
+                SkCommandProcessor.Notify(fill ? "Nothing nearby needed fuel." : "Nothing nearby was lit.");
+            }
         }
 
         // ------------------------------------------------------------------ rules
