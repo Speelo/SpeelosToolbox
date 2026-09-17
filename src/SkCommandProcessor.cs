@@ -20,6 +20,8 @@ namespace SkToolbox
         //public static bool infStacks = false;
         public static bool noCostEnabled = false;
         public static bool ghostEnabled = false;
+        public static bool infEitr = false;
+        public static bool noCarryLimit = false;
 
         // Player tuning. Zero means "never touched", so a respawn only rewrites what the user actually set and
         // everything else is left at whatever the prefab (or another mod) decided.
@@ -112,7 +114,9 @@ namespace SkToolbox
         {
             if (lp == null) return;
             CaptureTuningBaseline(lp);
-            if (carryWeight > 0) lp.m_maxCarryWeight = carryWeight;
+            // The toggle wins over the slider: someone who asked for no limit at all did not mean 300.
+            if (noCarryLimit) lp.m_maxCarryWeight = 99999f;
+            else if (carryWeight > 0) lp.m_maxCarryWeight = carryWeight;
             if (pickupRange > 0) lp.m_autoPickupRange = pickupRange;
             if (jumpForce > 0) lp.m_jumpForce = jumpForce;
             if (runSpeed > 0) lp.m_runSpeed = runSpeed;
@@ -120,9 +124,17 @@ namespace SkToolbox
             if (exploreRadius > 0 && Minimap.instance != null) Minimap.instance.m_exploreRadius = exploreRadius;
         }
 
+        /// <summary>Puts only the carry limit back, leaving the other tuning values alone.</summary>
+        internal static void RestoreCarryBaseline(Player lp)
+        {
+            if (lp == null || !tuningBaselineTaken) return;
+            lp.m_maxCarryWeight = baseCarry;
+        }
+
         /// <summary>Forgets every tuning value and puts the captured originals back.</summary>
         internal static void ResetTuning(Player lp)
         {
+            noCarryLimit = false;
             carryWeight = 0;
             pickupRange = 0;
             jumpForce = 0;
@@ -186,6 +198,7 @@ namespace SkToolbox
                 flyEnabled = false;
                 noCostEnabled = false;
                 ghostEnabled = false;
+                infEitr = false;
                 return;
             }
 

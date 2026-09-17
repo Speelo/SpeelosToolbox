@@ -448,6 +448,19 @@ namespace SkToolbox
             }
         }
 
+        // Eitr is built the same way as stamina: Player.UseEitr is the only route to the one subtraction, and it
+        // already opens with "if (v == 0f) return;", so zeroing the amount is the game's own no-op path.
+        [HarmonyPatch(typeof(Player), nameof(Player.UseEitr))]
+        private static class PatchInfiniteEitr
+        {
+            private static void Prefix(Player __instance, ref float v)
+            {
+                if (!SkCommandProcessor.infEitr) return;
+                if (__instance == null || (object)__instance != (object)Player.m_localPlayer) return;
+                v = 0f;
+            }
+        }
+
         // ---------------------------------------------------------------------------------------------------------
         // Speelo's Toolbox: jumping and crouching while the menu is open.
         //

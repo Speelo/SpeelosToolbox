@@ -88,6 +88,11 @@ namespace SkToolbox.SkModules
                    ToggleFlying, () => Player.m_localPlayer != null && Player.m_localPlayer.IsDebugFlying());
             Toggle(grid, "Cheats", "Infinite Stamina", "Nothing costs stamina: running, swimming, sneaking, fishing, attacking, jumping, dodging", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
                    ToggleInfStam, () => Player.m_localPlayer != null && SkCommandProcessor.infStamina);
+            Toggle(grid, "Cheats", "Infinite Eitr", "Spells and staves cost no eitr", SkIcons.First("MeadEitrMinor", "Eitr", "Sap"),
+                   ToggleInfEitr, () => Player.m_localPlayer != null && SkCommandProcessor.infEitr);
+            Toggle(grid, "Cheats", "No Carry Limit", "Carry as much as you like, with no slowdown and no encumbered warning",
+                   SkIcons.First("ArmorBronzeChest", "ArmorLeatherChest"),
+                   ToggleNoCarryLimit, () => Player.m_localPlayer != null && SkCommandProcessor.noCarryLimit);
             Toggle(grid, "Cheats", "No Cost Building", "Unlock all pieces and build for free", SkIcons.First("Wood", "Stone"),
                    ToggleNoCost, () => Player.m_localPlayer != null && Player.m_localPlayer.NoCostCheat());
             Toggle(grid, "Cheats", "Build Anywhere", "Remove build restrictions", SkIcons.First("Cultivator", "Hoe"),
@@ -1103,6 +1108,38 @@ namespace SkToolbox.SkModules
         {
             SkCommandProcessor.ProcessCommand("/infstam", SkCommandProcessor.LogTo.Chat);
             BeginMenu();
+        }
+
+        public void ToggleInfEitr()
+        {
+            SkCommandProcessor.infEitr = !SkCommandProcessor.infEitr;
+            SkCommandProcessor.Notify("Infinite eitr " + (SkCommandProcessor.infEitr ? "on." : "off."));
+        }
+
+        /// <summary>
+        /// Being over the carry limit is what causes both the slowdown and the encumbered state, so lifting the
+        /// limit removes the whole condition rather than papering over its symptoms.
+        /// </summary>
+        public void ToggleNoCarryLimit()
+        {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+            SkCommandProcessor.CaptureTuningBaseline(player);
+            SkCommandProcessor.noCarryLimit = !SkCommandProcessor.noCarryLimit;
+
+            SkCommandProcessor.ApplyTuning(player);
+            if (!SkCommandProcessor.noCarryLimit && SkCommandProcessor.carryWeight <= 0)
+            {
+                // Nothing on the Tweaks slider to fall back to, so put the game's own value back.
+                SkCommandProcessor.RestoreCarryBaseline(player);
+            }
+            SkCommandProcessor.Notify(SkCommandProcessor.noCarryLimit
+                ? "Carry limit lifted."
+                : "Carry limit back to normal.");
         }
 
         public void RepairAll()
