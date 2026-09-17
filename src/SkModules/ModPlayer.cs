@@ -86,7 +86,7 @@ namespace SkToolbox.SkModules
                    ToggleGodmode, () => Player.m_localPlayer != null && Player.m_localPlayer.InGodMode());
             Toggle(grid, "Cheats", "Flying", "Free flight", SkIcons.First("Feathers"),
                    ToggleFlying, () => Player.m_localPlayer != null && Player.m_localPlayer.IsDebugFlying());
-            Toggle(grid, "Cheats", "Infinite Stamina", "Running, swimming, sneaking and being overloaded cost nothing, and stamina refills almost instantly", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
+            Toggle(grid, "Cheats", "Infinite Stamina", "Nothing costs stamina: running, swimming, sneaking, fishing, attacking, jumping, dodging", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
                    ToggleInfStam, () => Player.m_localPlayer != null && SkCommandProcessor.infStamina);
             Toggle(grid, "Cheats", "No Cost Building", "Unlock all pieces and build for free", SkIcons.First("Wood", "Stone"),
                    ToggleNoCost, () => Player.m_localPlayer != null && Player.m_localPlayer.NoCostCheat());

@@ -427,6 +427,28 @@ namespace SkToolbox
         }
 
         // ---------------------------------------------------------------------------------------------------------
+        // Speelo's Toolbox: infinite stamina, everywhere.
+        //
+        // Zeroing the player's drain fields only covers costs the PLAYER owns - running, swimming, sneaking, being
+        // overloaded. Plenty of things charge stamina from somewhere else entirely: fishing bills you from the
+        // FishingFloat and the Fish, and attacks from the weapon. Chasing those field by field never ends.
+        //
+        // Player.UseStamina is the single funnel - it is the only place m_stamina is ever subtracted - so zeroing
+        // the amount here covers every source at once. Zero rather than skipping the method, because its first line
+        // is already "if (v == 0f) return;": this takes the game's own no-op path instead of stepping around it.
+        // ---------------------------------------------------------------------------------------------------------
+        [HarmonyPatch(typeof(Player), nameof(Player.UseStamina))]
+        private static class PatchInfiniteStamina
+        {
+            private static void Prefix(Player __instance, ref float v)
+            {
+                if (!SkCommandProcessor.infStamina) return;
+                if (__instance == null || (object)__instance != (object)Player.m_localPlayer) return;
+                v = 0f;
+            }
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
         // Speelo's Toolbox: jumping and crouching while the menu is open.
         //
         // Walking with the menu up rides on Valheim's own takeInputDelay state, which passes the move vector and the
