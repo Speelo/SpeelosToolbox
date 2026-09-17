@@ -270,7 +270,7 @@ namespace SkToolbox
 
         // ---- window / styles ----
         private const int WindowId = 49000;
-        private Rect windowRect = new Rect(24f, 80f, 740f, 580f);
+        private Rect windowRect = new Rect(24f, 80f, 770f, 580f);
         private bool windowPlaced = false;
         private bool stylesReady = false;
         private float stylesAlpha = -1f;
@@ -778,7 +778,7 @@ namespace SkToolbox
             }
             if (sectioned)
             {
-                DrawSectionedGrid(frame, shown, columns);
+                DrawSectionedGrid(frame, shown);
                 return;
             }
 
@@ -839,8 +839,18 @@ namespace SkToolbox
         }
 
         /// <summary>Grid split into labelled boxes, one per section, in the order the sections first appear.</summary>
-        private void DrawSectionedGrid(MenuFrame frame, List<SkGridItem> shown, int columns)
+        private void DrawSectionedGrid(MenuFrame frame, List<SkGridItem> shown)
         {
+            // Columns are worked out here rather than reused from the flat grid: these rows sit INSIDE a section
+            // box, so they have the box's own padding less room to play with. Using the outer figure overflowed by
+            // about eighteen pixels and put a horizontal scrollbar across the whole tab.
+            // A row of n cells needs 58n + 4: each cell is GridCell wide, GridPad apart, plus the outer margins.
+            float boxPadding = styleSectionBox != null
+                ? styleSectionBox.padding.left + styleSectionBox.padding.right + 8f
+                : 24f;
+            float available = Mathf.Max(80f, windowRect.width - 42f - boxPadding);
+            int columns = Mathf.Max(1, Mathf.FloorToInt((available - 4f) / (GridCell + GridPad)));
+
             List<string> order = new List<string>();
             Dictionary<string, List<SkGridItem>> groups = new Dictionary<string, List<SkGridItem>>();
             foreach (SkGridItem cell in shown)
