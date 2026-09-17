@@ -104,6 +104,8 @@ namespace SkToolbox.SkModules
             Action(grid, "Cheats", "Reach", "Interact with and place things from far away",
                    SkIcons.First("Chain", "LeatherScraps"), ShowReachForm);
             Action(grid, "Cheats", "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame, SkScope.Server);
+            Action(grid, "Cheats", "Immunities", "Choose what is allowed to hurt you, rather than god mode's all or nothing",
+                   SkIcons.First("ShieldIronTower", "ShieldWood", "HelmetOdin"), ShowImmunityForm);
             Action(grid, "Cheats", "Guardian Power", "Choose a boss power, use it now, or clear its cooldown",
                    SkIcons.First("TrophyEikthyr", "Wishbone"), ShowPowerForm);
             Action(grid, "Cheats", "Status Effects", "Apply a status effect, or clear the ones you have",
@@ -262,6 +264,102 @@ namespace SkToolbox.SkModules
             if (skills == null) return;
             skills.CheatResetSkill(name == "All" ? "all" : name);
             SkCommandProcessor.Notify((name == "All" ? "All skills" : name) + " reset to zero");
+        }
+
+        // ------------------------------------------------------------------ immunities
+
+        /// <summary>
+        /// Per-source damage immunity. God mode is all or nothing; this is the dial, for the times you want the
+        /// cliff and the campfire to stop killing you while a greydwarf still can.
+        ///
+        /// The list comes from the HitType enum rather than being hand-written, so a new source in a future patch
+        /// appears on its own. Fighting damage is left out on purpose: switching those off is just god mode with
+        /// extra clicks, and god mode is one cell away.
+        /// </summary>
+        private void ShowImmunityForm()
+        {
+            SkMenuController.SkFormField list = new SkMenuController.SkFormField
+            {
+                Id = "types",
+                Label = "Cannot hurt me",
+                Kind = SkMenuController.SkFieldKind.Checklist,
+                Height = 210,
+            };
+
+            foreach (HitData.HitType type in Enum.GetValues(typeof(HitData.HitType)))
+            {
+                if (type == HitData.HitType.Undefined) continue;
+                if (type == HitData.HitType.EnemyHit || type == HitData.HitType.PlayerHit) continue;
+                list.Options.Add(((int)type).ToString());
+                list.OptionLabels.Add(Spaced(type.ToString()));
+                list.Checked.Add(SkCommandProcessor.immuneTo.Contains((int)type));
+            }
+
+            SkMenuController.SkForm form = new SkMenuController.SkForm
+            {
+                Title = "Immunities",
+                Note = "Anything switched on here cannot damage you. Creature and player attacks are deliberately not "
+                     + "listed - turning those off is what god mode is for.",
+            };
+            form.Fields.Add(list);
+
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "Apply",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkMenuController.SkFormField picked = f.Field("types");
+                    SkCommandProcessor.immuneTo.Clear();
+                    int on = 0;
+                    for (int i = 0; i < picked.Options.Count && i < picked.Checked.Count; i++)
+                    {
+                        if (!picked.Checked[i]) continue;
+                        int value;
+                        if (!int.TryParse(picked.Options[i], out value)) continue;
+                        SkCommandProcessor.immuneTo.Add(value);
+                        on++;
+                    }
+                    SkCommandProcessor.Notify(on > 0 ? "Immune to " + on + " kinds of damage." : "No immunities set.");
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "All on",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkMenuController.SkFormField picked = f.Field("types");
+                    SkCommandProcessor.immuneTo.Clear();
+                    for (int i = 0; i < picked.Options.Count; i++)
+                    {
+                        int value;
+                        if (int.TryParse(picked.Options[i], out value)) SkCommandProcessor.immuneTo.Add(value);
+                    }
+                    SkCommandProcessor.Notify("Nothing but combat can hurt you now.");
+                },
+            });
+            form.Actions.Add(new SkMenuController.SkFormAction
+            {
+                Label = "All off",
+                Run = (SkMenuController.SkForm f) =>
+                {
+                    SkCommandProcessor.immuneTo.Clear();
+                    SkCommandProcessor.Notify("Immunities cleared.");
+                },
+            });
+            SkMC.ShowForm(form);
+        }
+
+        /// <summary>AshlandsLava reads better as Ashlands Lava.</summary>
+        private static string Spaced(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            System.Text.StringBuilder built = new System.Text.StringBuilder(name.Length + 4);
+            for (int i = 0; i < name.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(name[i]) && !char.IsUpper(name[i - 1])) built.Append(' ');
+                built.Append(name[i]);
+            }
+            return built.ToString();
         }
 
         // ------------------------------------------------------------------ guardian power

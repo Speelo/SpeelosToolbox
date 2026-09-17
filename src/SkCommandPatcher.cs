@@ -563,15 +563,27 @@ namespace SkToolbox
         [HarmonyPatch(typeof(Character), nameof(Character.ApplyDamage))]
         private static class PatchGodModeBlocksDamage
         {
-            private static bool Prefix(Character __instance)
+            private static bool Prefix(Character __instance, HitData hit)
             {
+                Player local = Player.m_localPlayer;
+                if (local == null || (object)__instance != (object)local)
+                {
+                    return true; // never anyone else's damage
+                }
+
+                // Per-source immunity, independent of god mode: the point is to switch off falling or drowning
+                // while everything else still hurts, which god mode cannot express.
+                if (hit != null && SkCommandProcessor.immuneTo.Contains((int)hit.m_hitType))
+                {
+                    return false;
+                }
+
                 if (Configuration.SkConfigEntry.CGodModeBlocksDamage != null
                     && !Configuration.SkConfigEntry.CGodModeBlocksDamage.Value)
                 {
                     return true; // player asked for Valheim's unmodified behaviour
                 }
-                Player local = Player.m_localPlayer;
-                if (local != null && (object)__instance == (object)local && local.InGodMode())
+                if (local.InGodMode())
                 {
                     return false; // swallow the hit entirely
                 }

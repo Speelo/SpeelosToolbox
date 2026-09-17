@@ -125,7 +125,7 @@ namespace SkToolbox
         // first, so an overlay would let clicks fall through to the grid underneath.
         // ---------------------------------------------------------------------------------------------------------
 
-        public enum SkFieldKind { Choice, IntSlider, Text, Toggle, Info }
+        public enum SkFieldKind { Choice, IntSlider, Text, Toggle, Info, Checklist }
 
         public class SkFormField
         {
@@ -137,6 +137,9 @@ namespace SkToolbox
             public List<string> Options = new List<string>();
             public List<string> OptionLabels = new List<string>();
             public int Selected = 0;
+
+            /// <summary>Checklist: one flag per option, independently on or off. Grown to match Options when drawn.</summary>
+            public List<bool> Checked = new List<bool>();
 
             public int Min = 0;
             public int Max = 100;
@@ -1074,6 +1077,10 @@ namespace SkToolbox
                         DrawInfoField(field);
                         break;
 
+                    case SkFieldKind.Checklist:
+                        DrawChecklistField(field);
+                        break;
+
                     case SkFieldKind.Toggle:
                     {
                         string label = (field.BoolValue ? "<color=#7CFC00>[ON]</color>" : "<color=#FF8080>[OFF]</color>");
@@ -1165,6 +1172,49 @@ namespace SkToolbox
                 if (GUILayout.Button(label, chosen ? styleTabOn : styleItem))
                 {
                     field.Selected = i;
+                }
+            }
+            if (shown == 0) GUILayout.Label("Nothing matches that.", styleTip);
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// A scrolling list where every row is independently on or off, for the cases a single Choice cannot express.
+        /// Same search box as Choice once the list is long enough to need one.
+        /// </summary>
+        private void DrawChecklistField(SkFormField field)
+        {
+            while (field.Checked.Count < field.Options.Count) field.Checked.Add(false);
+
+            if (field.Options.Count > FilterThreshold)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Search", styleSmall, GUILayout.Width(52f));
+                field.Filter = GUILayout.TextField(field.Filter ?? "", styleFilter);
+                if (GUILayout.Button("x", styleBack, GUILayout.Width(28f))) field.Filter = "";
+                GUILayout.EndHorizontal();
+            }
+
+            string needle = (field.Filter ?? "").Trim();
+            field.Scroll = GUILayout.BeginScrollView(field.Scroll, false, true, GUILayout.Height(field.Height > 0 ? field.Height : 196));
+            int shown = 0;
+            for (int i = 0; i < field.Options.Count; i++)
+            {
+                string label = (field.OptionLabels != null && i < field.OptionLabels.Count && !string.IsNullOrEmpty(field.OptionLabels[i]))
+                    ? field.OptionLabels[i]
+                    : field.Options[i];
+                if (needle.Length > 0
+                    && field.Options[i].IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0
+                    && label.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+                shown++;
+                bool on = field.Checked[i];
+                string mark = on ? "<color=#7CFC00>[ON]</color>  " : "<color=#7A8796>[OFF]</color>  ";
+                if (GUILayout.Button(mark + label, on ? styleTabOn : styleItem))
+                {
+                    field.Checked[i] = !on;
                 }
             }
             if (shown == 0) GUILayout.Label("Nothing matches that.", styleTip);

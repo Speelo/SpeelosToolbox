@@ -23,6 +23,12 @@ namespace SkToolbox
         public static bool infEitr = false;
         public static bool noCarryLimit = false;
 
+        /// <summary>
+        /// Hit types that cannot hurt you, by HitData.HitType. Our own state rather than anything on the player,
+        /// so it survives a respawn without needing to be re-applied.
+        /// </summary>
+        public static readonly System.Collections.Generic.HashSet<int> immuneTo = new System.Collections.Generic.HashSet<int>();
+
         // Player tuning. Zero means "never touched", so a respawn only rewrites what the user actually set and
         // everything else is left at whatever the prefab (or another mod) decided.
         public static int carryWeight = 0;
@@ -199,6 +205,7 @@ namespace SkToolbox
                 noCostEnabled = false;
                 ghostEnabled = false;
                 infEitr = false;
+                immuneTo.Clear();
                 return;
             }
 
