@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.4
+
+### New
+
+- **Guardian Power.** Set a power without visiting its stone, fire it on the spot, or just clear the cooldown after using one normally. Shows which power you have and how long until it is ready. Player tab, under Cheats.
+- **Immunities.** The dial between god mode and vanilla: pick which damage sources are allowed to hurt you, so the cliff and the campfire stop killing you while a greydwarf still can. Creature and player attacks are deliberately not on the list - switching those off is what god mode is for, and it is one cell away.
+- **No Carry Limit.** Being over the limit is what causes the slowdown, the warning and the stamina cost, so this lifts the limit rather than papering over the symptoms. Turning it off puts back whatever the Tweaks slider asked for, or the value your game started with.
+- **Infinite Eitr.** Staves and spells cost nothing.
+- **Refuel Fires.** Fills every fireplace around you to its own maximum, whatever it burns, with a radius slider - and a second button to put them all out. Reaches other people's fires. World tab, under Building.
+- **Reveal Around Me.** Uncovers the map out to a distance you choose, 50 to 3000 metres, centred on where you are standing - for when you want the fog gone locally without handing yourself the whole world. World tab, beside Reveal Map.
+- **Jump and crouch with the menu open.** Walking rides on the state Valheim puts you in just after closing its own menus, which passes movement and sprint through but switches jump and crouch off along with attacking. Those two are now put back. Typing a space into a search box still does not launch you.
+
+### Fixed
+
+- **Infinite Stamina now actually means infinite.** Swimming, sneaking and fishing all still charged you. Fishing bills stamina from the float and the fish rather than from the player, so the previous approach could never have reached it. It now covers every source at once, including attacks, jumps and dodges - which always cost before.
+- **A horizontal scrollbar across the sectioned tabs.** The rows inside a section were laid out against the width of the whole tab, not the narrower space inside the section box, so a full row overflowed by about eighteen pixels. The menu is thirty pixels wider to keep the same twelve columns.
+
 ## 1.1.3
 
 ### New
