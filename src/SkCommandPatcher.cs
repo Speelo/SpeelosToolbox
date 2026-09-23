@@ -21,6 +21,13 @@ namespace SkToolbox
         internal static bool LookHeld = false;
         internal static bool WalkAllowed = false;
 
+        /// <summary>
+        /// True only for the length of Character.UpdateDebugFly. That method calls TakeInput() exactly once and it
+        /// guards nothing but the ascend and descend block, so this is the narrowest hole we can open in the menu's
+        /// input block.
+        /// </summary>
+        internal static bool InDebugFlyMotion = false;
+
         private static bool bCheat = false;
         private static bool bFreeSupport = false;
         public static bool bBuildAnywhere = false;
@@ -285,7 +292,8 @@ namespace SkToolbox
         {
             private static void Postfix(ref bool __result)
             {
-                if (SkMenuController.IsOpen)
+                // InDebugFlyMotion is the one exception: see PatchMenuFlyUpDown.
+                if (SkMenuController.IsOpen && !InDebugFlyMotion)
                 {
                     __result = false;
                 }
@@ -495,8 +503,42 @@ namespace SkToolbox
                 // and walking is allowed - typing a space into a search box must not launch the player.
                 if (!SkMenuController.IsOpen || !WalkAllowed) return;
 
+                // Flying handles up and down for itself in UpdateDebugFly, and neither value means what it usually
+                // does up there: SetControls routes jump into Player.Dodge while you are crouch-toggled or blocking,
+                // so injecting it mid-air spends stamina on a dodge nobody asked for.
+                if (__instance.IsDebugFlying()) return;
+
                 if (jumpEdge) jump = true;
                 if (crouchEdge) crouch = true;
+            }
+        }
+
+        // Speelo's Toolbox: up and down while flying with the menu open.
+        //
+        // Debug flight does not use the jump and crouch values PlayerController hands to Player.SetControls. It is
+        // Character.UpdateDebugFly, reached only from UpdateMotion, and it reads the buttons itself - ZInput's Jump
+        // for up, LeftControl for down - so the SetControls patch above never had a say in it. What actually stopped
+        // it was our own PatchMenuTakeInput: the whole up/down block sits behind this character's TakeInput(), which
+        // we force false while the menu is open. The menu was switching off its own flight controls.
+        //
+        // Opening that gate for the length of this one method gives back those two reads and nothing else, since
+        // TakeInput() is called once here and guards nothing but ascend and descend.
+        [HarmonyPatch(typeof(Character), "UpdateDebugFly")]
+        private static class PatchMenuFlyUpDown
+        {
+            private static void Prefix(Character __instance)
+            {
+                InDebugFlyMotion = SkMenuController.IsOpen
+                    && WalkAllowed
+                    && Player.m_localPlayer != null
+                    && (object)__instance == (object)Player.m_localPlayer;
+            }
+
+            // A Finalizer rather than a Postfix: if anything inside throws - ours or another mod's - the gate still
+            // closes, instead of being left propped open for the rest of the session.
+            private static void Finalizer()
+            {
+                InDebugFlyMotion = false;
             }
         }
 

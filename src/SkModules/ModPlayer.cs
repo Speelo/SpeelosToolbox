@@ -88,7 +88,7 @@ namespace SkToolbox.SkModules
                    ToggleFlying, () => Player.m_localPlayer != null && Player.m_localPlayer.IsDebugFlying());
             Toggle(grid, "Cheats", "Infinite Stamina", "Nothing costs stamina: running, swimming, sneaking, fishing, attacking, jumping, dodging", SkIcons.First("MeadStaminaMedium", "MeadStaminaMinor"),
                    ToggleInfStam, () => Player.m_localPlayer != null && SkCommandProcessor.infStamina);
-            Toggle(grid, "Cheats", "Infinite Eitr", "Spells and staves cost no eitr", SkIcons.First("MeadEitrMinor", "Eitr", "Sap"),
+            Toggle(grid, "Cheats", "Infinite Eitr", "Spells and staves cost nothing and eitr refills at once. Needs eitr food - without it your maximum is zero", SkIcons.First("MeadEitrMinor", "Eitr", "Sap"),
                    ToggleInfEitr, () => Player.m_localPlayer != null && SkCommandProcessor.infEitr);
             Toggle(grid, "Cheats", "No Carry Limit", "Carry as much as you like, with no slowdown and no encumbered warning",
                    SkIcons.First("ArmorBronzeChest", "ArmorLeatherChest"),
@@ -106,8 +106,8 @@ namespace SkToolbox.SkModules
             Action(grid, "Cheats", "Tame", "Tame all nearby creatures", SkIcons.First("Carrot", "Raspberry"), Tame, SkScope.Server);
             Action(grid, "Cheats", "Immunities", "Choose what is allowed to hurt you, rather than god mode's all or nothing",
                    SkIcons.First("ShieldIronTower", "ShieldWood", "HelmetOdin"), ShowImmunityForm);
-            Action(grid, "Cheats", "Guardian Power", "Choose a boss power, use it now, or clear its cooldown",
-                   SkIcons.First("TrophyEikthyr", "Wishbone"), ShowPowerForm);
+            Action(grid, "Cheats", "Guardian Power", "Pick a boss power by its trophy, use it, or clear its cooldown",
+                   SkIcons.First("TrophyEikthyr", "Wishbone"), ShowPowerGrid);
             Action(grid, "Cheats", "Status Effects", "Apply a status effect, or clear the ones you have",
                    SkIcons.First("MeadFrostResist", "MeadPoisonResist", "MeadHealthMinor"), ShowStatusForm);
 
@@ -365,13 +365,39 @@ namespace SkToolbox.SkModules
         // ------------------------------------------------------------------ guardian power
 
         /// <summary>
-        /// Boss powers. Set one without visiting its stone, fire it regardless of cooldown, or just clear the
-        /// cooldown after using it normally.
+        /// GP_ name to the trophy whose icon stands for it. Three of the seven do not follow the power's own name -
+        /// Moder's trophy is the dragon queen's, Yagluth's is the goblin king's, the Queen's is the seeker queen's -
+        /// so this is written out rather than derived. A wrong name here is a silent blank cell, not an error.
+        /// </summary>
+        private static readonly Dictionary<string, string> PowerTrophies = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "GP_Eikthyr",  "TrophyEikthyr" },
+            { "GP_TheElder", "TrophyTheElder" },
+            { "GP_Bonemass", "TrophyBonemass" },
+            { "GP_Moder",    "TrophyDragonQueen" },
+            { "GP_Yagluth",  "TrophyGoblinKing" },
+            { "GP_Queen",    "TrophySeekerQueen" },
+            { "GP_Fader",    "TrophyFader" },
+        };
+
+        /// <summary>Progression order, which is not the order ObjectDB happens to hold them in.</summary>
+        private static readonly List<string> PowerOrder = new List<string>
+        {
+            "GP_Eikthyr", "GP_TheElder", "GP_Bonemass", "GP_Moder", "GP_Yagluth", "GP_Queen", "GP_Fader",
+        };
+
+        /// <summary>
+        /// Boss powers as a grid of trophies, with the ring on the one you have. Clicking a trophy sets that power:
+        /// in a grid the ring is the state, so a click that did not move it would read as having done nothing.
+        ///
+        /// A pushed grid rather than a form, so it gets the same cells, ring, tooltips and Back button as every
+        /// other level of the menu. The cost is the live "ready in Ns" readout the form used to show, which has
+        /// nowhere to sit here - the two action cells report where things stand when you click them instead.
         ///
         /// Calls the player directly rather than the setpower command: that one is admin-gated, so it is refused
         /// for a client on someone else's server, and a guardian power is entirely local to you.
         /// </summary>
-        private void ShowPowerForm()
+        private void ShowPowerGrid()
         {
             Player player = Player.m_localPlayer;
             if (player == null)
@@ -380,8 +406,7 @@ namespace SkToolbox.SkModules
                 return;
             }
 
-            List<string> names = new List<string>();
-            List<string> labels = new List<string>();
+            List<StatusEffect> powers = new List<StatusEffect>();
             ObjectDB db = ObjectDB.instance;
             if (db != null && db.m_StatusEffects != null)
             {
@@ -390,101 +415,137 @@ namespace SkToolbox.SkModules
                     // Guardian powers are the GP_ prefixed status effects; everything else in here is a buff.
                     if (effect == null || string.IsNullOrEmpty(effect.name)) continue;
                     if (!effect.name.StartsWith("GP_", StringComparison.OrdinalIgnoreCase)) continue;
-                    names.Add(effect.name);
-                    labels.Add(effect.name + Blurb(effect));
+                    powers.Add(effect);
                 }
             }
-            if (names.Count == 0)
+            if (powers.Count == 0)
             {
                 SkCommandProcessor.Notify("Power list is not available yet. Load into a world first.");
                 return;
             }
 
-            string current = player.GetGuardianPowerName();
-            float cooldown = player.m_guardianPowerCooldown;
-
-            SkMenuController.SkForm form = new SkMenuController.SkForm
+            // Read from ObjectDB rather than from the table, so another mod's power still gets a cell. The table
+            // only supplies the icon and the order; anything unrecognised sorts to the end and borrows the wishbone.
+            powers.Sort(delegate (StatusEffect a, StatusEffect b)
             {
-                Title = "Guardian Power",
-                Note = "The power you would normally get by praying at a boss stone. Setting one replaces whatever you have.",
-            };
-            form.Fields.Add(new SkMenuController.SkFormField
-            {
-                Id = "now",
-                Label = "Right now",
-                Kind = SkMenuController.SkFieldKind.Info,
-                Height = 44,
-                TextValue = (string.IsNullOrEmpty(current) ? "No power set." : "Power: " + current)
-                          + (cooldown > 0f ? "     Ready in " + Mathf.CeilToInt(cooldown) + "s" : "     Ready now"),
+                int ia = PowerOrder.IndexOf(a.name); if (ia < 0) ia = int.MaxValue;
+                int ib = PowerOrder.IndexOf(b.name); if (ib < 0) ib = int.MaxValue;
+                return ia != ib ? ia.CompareTo(ib) : string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase);
             });
-            SkMenuController.SkFormField picker = new SkMenuController.SkFormField
-            {
-                Id = "power", Label = "Power", Kind = SkMenuController.SkFieldKind.Choice, Height = 170,
-            };
-            picker.Options.AddRange(names);
-            picker.OptionLabels.AddRange(labels);
-            form.Fields.Add(picker);
 
-            form.Actions.Add(new SkMenuController.SkFormAction
+            List<SkMenuController.SkGridItem> grid = new List<SkMenuController.SkGridItem>();
+            foreach (StatusEffect effect in powers)
             {
-                Label = "Set power",
-                Run = (SkMenuController.SkForm f) =>
+                string gp = effect.name;
+                string label = PowerLabel(effect);
+                string trophy;
+                Sprite icon = PowerTrophies.TryGetValue(gp, out trophy)
+                    ? SkIcons.First(trophy, "Wishbone")
+                    : SkIcons.First("Wishbone");
+
+                grid.Add(new SkMenuController.SkGridItem
                 {
-                    Player lp = Player.m_localPlayer;
-                    string pick = f.Field("power").SelectedOption;
-                    if (lp == null || string.IsNullOrEmpty(pick)) return;
-                    lp.SetGuardianPower(pick);
-                    lp.m_guardianPowerCooldown = 0f;
-                    SkCommandProcessor.Notify("Power set: " + pick);
-                },
-            });
-            form.Actions.Add(new SkMenuController.SkFormAction
-            {
-                Label = "Use now",
-                Run = (SkMenuController.SkForm f) =>
-                {
-                    Player lp = Player.m_localPlayer;
-                    if (lp == null) return;
-                    // Clear first: StartGuardianPower refuses outright while the cooldown is running.
-                    lp.m_guardianPowerCooldown = 0f;
-                    if (!lp.StartGuardianPower())
+                    Name = gp,
+                    Display = label,
+                    Tip = label + "  -  set this as your power. The ring marks the one you have",
+                    Icon = icon,
+                    Section = "Powers",
+                    Scope = SkScope.Client,
+                    // Read live from the player, so the ring follows a power set at a boss stone as well.
+                    IsOn = () =>
                     {
-                        SkCommandProcessor.Notify("Could not use it - set a power first, or wait until you are not mid-swing.");
-                    }
-                },
-            });
-            form.Actions.Add(new SkMenuController.SkFormAction
-            {
-                Label = "Clear cooldown",
-                Run = (SkMenuController.SkForm f) =>
-                {
-                    Player lp = Player.m_localPlayer;
-                    if (lp == null) return;
-                    lp.m_guardianPowerCooldown = 0f;
-                    SkCommandProcessor.Notify("Power is ready again.");
-                },
-            });
-            SkMC.ShowForm(form);
+                        Player p = Player.m_localPlayer;
+                        return p != null && p.GetGuardianPowerName() == gp;
+                    },
+                    OnClick = (string ignored) => SetPower(gp, label),
+                });
+            }
+
+            Action(grid, "Actions", "Use now", "Fire the power you have set. Like praying at the stone, it also buffs any player within 10m",
+                   SkIcons.First("Wishbone", "TrophyEikthyr"), UsePower, SkScope.Server);
+            Action(grid, "Actions", "Clear cooldown", "Make the power ready again without waiting",
+                   SkIcons.First("MeadStaminaMedium", "Coins"), ClearPowerCooldown);
+
+            SkMC.RequestGridMenu(grid, (List<SkMenuController.SkMenuSlider>)null, "Guardian Power", showFilter: false);
         }
 
-        /// <summary>The power's own display name, which reads better than the prefab name alone.</summary>
-        private static string Blurb(StatusEffect effect)
+        /// <summary>The power's display name, falling back to the prefab name before localization is up.</summary>
+        private static string PowerLabel(StatusEffect effect)
         {
             try
             {
                 if (Localization.instance != null && !string.IsNullOrEmpty(effect.m_name))
                 {
                     string localized = Localization.instance.Localize(effect.m_name);
-                    if (!string.IsNullOrEmpty(localized) && !localized.StartsWith("["))
-                    {
-                        return "     <color=#9FB6CC>" + localized + "</color>";
-                    }
+                    if (!string.IsNullOrEmpty(localized) && !localized.StartsWith("[")) return localized;
                 }
             }
             catch (Exception)
             {
+                // Localization is not ready; the prefab name is a fine label.
             }
-            return "";
+            return effect.name;
+        }
+
+        private static void SetPower(string gp, string label)
+        {
+            Player lp = Player.m_localPlayer;
+            if (lp == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+            lp.SetGuardianPower(gp);
+            lp.m_guardianPowerCooldown = 0f; // SetGuardianPower leaves it alone, so a swap would inherit the old wait
+            SkCommandProcessor.Notify("Power set: " + label);
+        }
+
+        /// <summary>
+        /// StartGuardianPower only fires the animation. The buff comes from the animation event calling
+        /// ActivateGuardianPower, which is why an interrupted animation used to leave you with nothing. Calling it
+        /// ourselves is what makes the button reliable, and it still applies exactly once: it sets the cooldown, so
+        /// the animation event's own call finds one running and does nothing.
+        ///
+        /// Neither return value is worth reading. ActivateGuardianPower returns false on every path it has,
+        /// including the one that worked.
+        /// </summary>
+        private static void UsePower()
+        {
+            Player lp = Player.m_localPlayer;
+            if (lp == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+            if (string.IsNullOrEmpty(lp.GetGuardianPowerName()))
+            {
+                SkCommandProcessor.Notify("No power set - pick a trophy first.");
+                return;
+            }
+
+            lp.m_guardianPowerCooldown = 0f; // both calls below refuse outright while one is running
+            lp.StartGuardianPower();         // the animation and the sound
+            lp.ActivateGuardianPower();      // the buff itself
+            SkCommandProcessor.Notify("Power used.");
+        }
+
+        private static void ClearPowerCooldown()
+        {
+            Player lp = Player.m_localPlayer;
+            if (lp == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
+            if (lp.m_guardianPowerCooldown <= 0f)
+            {
+                SkCommandProcessor.Notify(string.IsNullOrEmpty(lp.GetGuardianPowerName())
+                    ? "No power set yet."
+                    : "Power is already ready.");
+                return;
+            }
+            lp.m_guardianPowerCooldown = 0f;
+            SkCommandProcessor.Notify("Power is ready again.");
         }
 
         // ------------------------------------------------------------------ bookmarks and loadouts
@@ -1210,8 +1271,27 @@ namespace SkToolbox.SkModules
 
         public void ToggleInfEitr()
         {
+            Player player = Player.m_localPlayer;
+            if (player == null)
+            {
+                SkCommandProcessor.Notify("No player yet.");
+                return;
+            }
             SkCommandProcessor.infEitr = !SkCommandProcessor.infEitr;
-            SkCommandProcessor.Notify("Infinite eitr " + (SkCommandProcessor.infEitr ? "on." : "off."));
+            SkCommandProcessor.ApplyInfEitr(player, applyOffValues: true);
+
+            if (!SkCommandProcessor.infEitr)
+            {
+                SkCommandProcessor.Notify("Infinite eitr off.");
+            }
+            else
+            {
+                // Max eitr comes entirely from food, so on an empty stomach the toggle has nothing to work with.
+                // Say so rather than let it look broken.
+                SkCommandProcessor.Notify(player.GetMaxEitr() > 0f
+                    ? "Infinite eitr on."
+                    : "Infinite eitr on - but you have eaten no eitr food, so your maximum is still zero.");
+            }
         }
 
         /// <summary>

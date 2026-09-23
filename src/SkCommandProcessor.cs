@@ -96,6 +96,47 @@ namespace SkToolbox
             }
         }
 
+        private static bool eitrBaselineTaken = false;
+        private static float baseEitrRegen, baseEitrRegenDelay;
+
+        /// <summary>
+        /// Eitr's counterpart to ApplyInfStamina, and the reason the toggle looked half-broken: the field is
+        /// m_eiterRegen - "eiter", Valheim's own spelling - so it never turns up in a search for eitr and had been
+        /// missed. Zeroing UseEitr makes eitr free to spend, but nothing was setting the refill rate, so the bar
+        /// still crawled back at the stock rate. You only notice that after eating fresh eitr food, because raising
+        /// the ceiling is the one thing that leaves current eitr below maximum.
+        ///
+        /// The off values are captured from a live player rather than hard-coded. The assembly only carries the
+        /// field initializer; Unity deserializes the Player prefab over it at instantiation, so writing back a
+        /// guessed default would quietly change vanilla regen for the rest of the session.
+        ///
+        /// Worth knowing: max eitr is entirely food-derived - there is no base eitr the way there is base health and
+        /// stamina - so with no eitr food eaten the maximum is zero and none of this can do anything.
+        /// </summary>
+        internal static void ApplyInfEitr(Player lp, bool applyOffValues)
+        {
+            if (lp == null) return;
+
+            if (!eitrBaselineTaken)
+            {
+                // Before the first write, whichever write that turns out to be.
+                eitrBaselineTaken = true;
+                baseEitrRegen = lp.m_eiterRegen;
+                baseEitrRegenDelay = lp.m_eitrRegenDelay;
+            }
+
+            if (infEitr)
+            {
+                lp.m_eiterRegen = 999f;
+                lp.m_eitrRegenDelay = 0.05f;
+            }
+            else if (applyOffValues)
+            {
+                lp.m_eiterRegen = baseEitrRegen;
+                lp.m_eitrRegenDelay = baseEitrRegenDelay;
+            }
+        }
+
         private static bool tuningBaselineTaken = false;
         private static float baseCarry, basePickup, baseJump, baseRun, baseSwim, baseExplore;
 
@@ -210,6 +251,7 @@ namespace SkToolbox
             }
 
             ApplyInfStamina(lp, applyOffValues: false);
+            ApplyInfEitr(lp, applyOffValues: false);
             ApplyFarInteract(lp, applyOffValues: false);
             ApplyTuning(lp);
 
