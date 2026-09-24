@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.5
+
+### Fixed
+
+- **Infinite Eitr left the bar refilling at normal speed.** It made spells free but never touched regeneration, which you would only notice after eating fresh eitr food - raising the ceiling is the one thing that leaves your current eitr below maximum. It now refills at once, the way Infinite Stamina does, and puts your real regeneration back when you switch it off. Note that eitr comes entirely from food: with none eaten your maximum is zero and the toggle has nothing to work with, so it says so rather than looking broken.
+- **You could not go up or down while flying with the menu open.** The menu was switching off its own flight controls. Flying reads the jump and crouch keys itself rather than taking the values the menu was already fixing up, and that read sits behind the same input gate the menu closes. It is now opened for exactly the moment flying needs it, and nothing else. Descending is the game's own hard-wired Left Ctrl, so a rebound crouch key will not work for it.
+- **Guardian powers were not reliably applied.** Using one only started the animation, and the buff came from the animation itself, so an interrupted swing left you with nothing.
+
+### Changed
+
+- **Guardian Power is now a grid of trophies**, with a ring around the one you have, instead of a list of internal names. Click a trophy to make it your power. There are seven, Fader included. Use now and Clear cooldown are their own buttons beside them. The live "ready in N seconds" readout is gone, since there is nowhere for it in a grid - the buttons say where things stand when you press them.
+
 ## 1.1.4
 
 ### New
