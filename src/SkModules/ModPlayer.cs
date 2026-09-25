@@ -1052,6 +1052,14 @@ namespace SkToolbox.SkModules
                 ItemDrop drop = prefab.GetComponent<ItemDrop>();
                 if (drop == null || drop.m_itemData == null || drop.m_itemData.m_shared == null) continue;
                 ItemDrop.ItemData.SharedData shared = drop.m_itemData.m_shared;
+                // The game's own test for "you may eat this": Humanoid.CanConsumeItem refuses anything that is
+                // not Consumable before it looks at anything else. Carrying food values is not enough, because
+                // the crafting intermediates carry them too - the uncooked prefabs were made by copying the
+                // cooked one and changing only the item type, so BreadDough has 120 stamina against Bread's 70
+                // and LoxPieUncooked has 120 health against LoxPie's 75. Being the highest numbers in the game
+                // they won every ranking, and Player.EatFood does not check the type itself, so they really did
+                // get eaten. Raw meat and the eggs came in the same way.
+                if (shared.m_itemType != ItemDrop.ItemData.ItemType.Consumable) continue;
                 if (shared.m_food <= 0f && shared.m_foodStamina <= 0f && shared.m_foodEitr <= 0f) continue;
                 if (shared.m_foodBurnTime <= 0f) continue; // not actually edible as a buff
                 // The prefab asset does not carry m_dropPrefab; EatFood dereferences it, so record it now.
