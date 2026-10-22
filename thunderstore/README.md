@@ -57,7 +57,7 @@ World: `/spawn` `/spawntamed` `/env` `/tod` `/wind` `/resetwind` `/stopevent` `/
 
 Console: `/?` `/echo` `/clear` `/console` `/listitems` `/listprefabs` `/listicons` `/listskills` `/q`
 
-Commands chain with `;`, so `/god; /fly` runs both. The config supports auto-run on spawn, aliases and hotkeys.
+Commands chain with `;`, so `/god; /fly` runs both. The config supports auto-run on spawn, aliases, and up to fifteen hotkeys - `l: /fly` runs it when you press L, and a capital means hold Shift. Hotkeys are read at startup and do not fire while you are typing.
 
 ## Achievements
 

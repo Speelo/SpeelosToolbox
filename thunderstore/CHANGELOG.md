@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.6
+
+### Fixed
+
+- **Command hotkeys never worked.** If you set one and nothing happened, you were not doing it wrong - the feature had been switched off since Hearth and Home and never switched back on. It works now. A hotkey is still written the way the config has always described it, `l: /fly`, and a capital letter still means you have to hold Shift. Thanks to the person who reported it rather than assuming they had the syntax wrong.
+- Hotkeys that cannot be read now say so, with their slot number, in the console at startup. Previously a mistake was silently ignored, which is exactly what made this hard to tell apart from the feature being broken.
+- Only the first colon separates the key from the command now, so a command can contain one. Binding the same key twice reports it and skips that slot, instead of quietly throwing away every hotkey after it.
+- **A message claiming command aliasing was disabled** printed on every startup. Aliasing works and has done all along; the message was left over from the same patch that disabled hotkeys. It also cleared the wrong list on its way past.
+
 ## 1.1.5
 
 ### Fixed
