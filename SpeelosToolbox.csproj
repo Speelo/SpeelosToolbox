@@ -96,6 +96,10 @@
       <HintPath>$(ValheimManaged)\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(ValheimManaged)\Unity.InputSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(ValheimManaged)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>

@@ -53,7 +53,7 @@ namespace SkToolbox
                     "\n2 - Customize Console Look" +
                     "\n3 - Command Aliasing" + // Valheim 1.0: aliasing is live (BuildAliases/DecomposeAlias)
                     "\n4 - On-Screen Menu" +
-                    "\n5 - Command Hotkeys [Currently Disabled due to Hearth and Home patch. Fix coming soon]" +
+                    "\n5 - Command Hotkeys" +
                     "\n");
 
                 SkConfigEntry.CConsoleEnabled = Config.Bind("0 - General", "ConsoleEnabled", true
@@ -196,7 +196,12 @@ namespace SkToolbox
                     "\nExample 2 Press Shift+Z to input /creative   | Z: /creative" +
                     "\nExample 3 Press Tilde to open the console    | `: /console" +
                     "\nOnly 'Printable ASCII characters' are valid! (https://theasciicode.com.ar/). Capital letters make the hotkey require Shift before the hotkey press." +
-                    " Only one command or command chain can be assigned to each key (if hotkey 1 assigns to q, hotkey 2 cannot also assign to q).");
+                    " Only one command or command chain can be assigned to each key (if hotkey 1 assigns to q, hotkey 2 cannot also assign to q)." +
+                    "\nOnly the first colon separates the key from the command, so the command itself may contain one." +
+                    " The key cannot be a colon or a space." +
+                    "\nHotkeys do not fire while you are typing - in chat, the console, a sign, a map pin, the inventory or this mod's own menu." +
+                    "\nChanges here are read at startup, so restart the game or use Reload Toolbox in the System tab after editing." +
+                    " A slot that cannot be read says so in the console at startup rather than failing silently.");
                 SkConfigEntry.CHotkey2 = Config.Bind("5 - CommandHotkeys", "Hotkey 2", ""
                     , "Set this to create a hotkey for a command or command chain.");
                 SkConfigEntry.CHotkey3 = Config.Bind("5 - CommandHotkeys", "Hotkey 3", ""

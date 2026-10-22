@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SkToolbox.SkModules
 {
@@ -33,7 +34,14 @@ namespace SkToolbox.SkModules
 
         public List<string> PrefabList = new List<string>();
         public List<string> ItemList = new List<string>();
-        private Dictionary<string, string> hotkeyList = new Dictionary<string, string>();
+        /// <summary>Bound character to the command line it runs. Keyed by the character the player types, which
+        /// is what the config documents and what the Input System hands us - so a capital really does mean Shift,
+        /// and a non-US layout works without a translation table.</summary>
+        private readonly Dictionary<char, string> hotkeys = new Dictionary<char, string>();
+
+        /// <summary>Characters typed since the last frame, filled by the Input System callback below.</summary>
+        private readonly List<char> typedChars = new List<char>();
+        private Keyboard typedFrom;
         private List<Character> nearbyCharacters = new List<Character>();
         private Terminal terminal;
 
@@ -900,6 +908,12 @@ namespace SkToolbox.SkModules
 
         private void OnDestroy()
         {
+            if (typedFrom != null)
+            {
+                typedFrom.onTextInput -= OnTextInput;
+                typedFrom = null;
+            }
+
             if (SkConfigEntry.CScrollable != null & SkConfigEntry.CScrollable.Value && Console.instance != null)
             {
                 Console.instance.m_output.gameObject.SetActive(true);
@@ -924,34 +938,90 @@ namespace SkToolbox.SkModules
             }
         }
 
+        /// <summary>
+        /// Runs any command bound to a character the player just typed.
+        ///
+        /// Characters rather than key codes: the config has always documented itself in terms of printable ASCII,
+        /// with a capital meaning "hold Shift", and the Input System hands us exactly that through onTextInput.
+        /// Polling key codes instead would mean a US-QWERTY translation table, which gets punctuation wrong on
+        /// every other layout and cannot express half of what the config already allows.
+        ///
+        /// This runs before any of the game's own input handling and is not filtered by the menu's key block, so
+        /// HotkeysAllowed below is the only thing standing between a bound key and a command while you are typing.
+        /// The buffer is cleared on rejected frames as well, or a character typed into chat would fire a frame later.
+        /// </summary>
         private void ProcessHotkeys()
         {
-            ////FIX
-            //if (hotkeyList != null && hotkeyList.Count > 0)
-            //{
+            try
+            {
+                SyncTextInput();
+                if (typedChars.Count == 0) return;
 
-            //    foreach (char c in Input.inputString)
-            //    {
-            //        if (Console.instance != null && !global::Console.IsVisible() && Chat.instance != null && !global::Chat.instance.m_input.isFocused)
-            //        {
-            //            try
-            //            {
-            //                string matchHotkey = hotkeyList.Keys.First(item => item.ToString().Equals(c.ToString()));
-            //                //SkUtilities.Logz(new string[] { "CONTROLLER" }, new string[] { "Found: " + matchHotkey });
+                if (hotkeys.Count == 0 || !HotkeysAllowed())
+                {
+                    typedChars.Clear();
+                    return;
+                }
 
-            //                if (!string.IsNullOrEmpty(matchHotkey.ToString()))
-            //                {
-            //                    //SkUtilities.Logz(new string[] { "CONTROLLER", "RUN HOTKEY" }, new string[] { "Command List: " + matchHotkey, hotkeyList[matchHotkey] });
-            //                    SkCommandProcessor.ProcessCommands(hotkeyList[matchHotkey], SkCommandProcessor.LogTo.Chat | SkCommandProcessor.LogTo.Console);
-            //                }
-            //            }
-            //            catch (Exception)
-            //            {
-            //                //
-            //            }
-            //        }
-            //    }
-            //}
+                // Taken and cleared before anything runs: a command that throws must not leave characters behind
+                // to fire again on the next frame.
+                char[] batch = typedChars.ToArray();
+                typedChars.Clear();
+
+                foreach (char typed in batch)
+                {
+                    string command;
+                    if (!hotkeys.TryGetValue(typed, out command)) continue;
+                    SkUtilities.Logz(new string[] { "CONTROLLER", "HOTKEY" }, new string[] { typed + " -> " + command });
+                    SkCommandProcessor.ProcessCommands(command, SkCommandProcessor.LogTo.Console);
+                }
+            }
+            catch (Exception ex)
+            {
+                typedChars.Clear();
+                SkUtilities.Logz(new string[] { "CONTROLLER", "HOTKEY" }, new string[] { "Hotkey failed: " + ex.Message },
+                                 LogType.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Keeps the onTextInput subscription pointed at the live keyboard. Keyboard.current is replaced when a
+        /// device is removed and re-added, and a subscription to the old one simply stops delivering.
+        /// </summary>
+        private void SyncTextInput()
+        {
+            Keyboard current = Keyboard.current;
+            if ((object)current == (object)typedFrom) return;
+
+            if (typedFrom != null) typedFrom.onTextInput -= OnTextInput;
+            typedFrom = current;
+            if (current != null) current.onTextInput += OnTextInput;
+        }
+
+        private void OnTextInput(char c)
+        {
+            // Bounded, so a key held down through a frame the game never processes cannot grow this without end.
+            if (typedChars.Count < 32) typedChars.Add(c);
+        }
+
+        /// <summary>
+        /// Every way the player might be typing rather than playing. Deliberately broader than the game's own
+        /// bind command, which only checks chat and the console: a hotkey that fires while you are naming a map
+        /// pin is worse than one that occasionally does not fire.
+        /// </summary>
+        private static bool HotkeysAllowed()
+        {
+            if (Player.m_localPlayer == null) return false;          // not in a world yet
+            if (global::Console.IsVisible()) return false;
+            if (Chat.instance != null && Chat.instance.HasFocus()) return false;
+            if (TextInput.IsVisible()) return false;                 // signs, portals, ping names
+            if (Minimap.InTextInput()) return false;                 // naming a map pin
+            if (Menu.IsVisible()) return false;
+            if (InventoryGui.IsVisible()) return false;
+            if (StoreGui.IsVisible()) return false;
+            if (ZInput.VirtualKeyboardOpen) return false;            // Steam Deck and console on-screen keyboard
+            if (SkMenuController.IsOpen) return false;               // our own menu, which has a search box
+            return true;
         }
 
         private void ProcessAutoRun()
@@ -987,142 +1057,91 @@ namespace SkToolbox.SkModules
             }
         }
 
+        /// <summary>
+        /// Reads the fifteen hotkey slots into the dispatch table.
+        ///
+        /// Every rejection is reported with its slot number. The old code failed in complete silence, which is
+        /// what left the one person who reported this unable to tell whether the syntax was wrong or the feature
+        /// was dead - it was the feature.
+        /// </summary>
         private void BuildHotkeys()
         {
-            try
-            {
-                if (SkConfigEntry.CHotkey1 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey1.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey1.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey2 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey2.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey2.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey3 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey3.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey3.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey4 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey4.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey4.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey5 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey5.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey5.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey6 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey6.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey6.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey7 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey7.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey7.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey8 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey8.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey8.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey9 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey9.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey9.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey10 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey10.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey10.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey11 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey11.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey11.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey12 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey12.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey12.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey13 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey13.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey13.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey14 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey14.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey14.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                if (SkConfigEntry.CHotkey15 != null && !string.IsNullOrEmpty(SkConfigEntry.CHotkey15.Value))
-                {
-                    string[] HotkeySplit = SkConfigEntry.CHotkey15.Value.Split(':');
-                    if (HotkeySplit.Length == 2)
-                    {
-                        hotkeyList.Add(HotkeySplit[0], HotkeySplit[1]);
-                    }
-                }
-                ////FIX
-                if(hotkeyList.Count > 0)
-                {
-                    SkCommandProcessor.PrintOut("Apologies, hotkeys was broken by Hearth and Home and is disabled this patch. Fix is in progress. Please attempt to use the new bind command.", SkCommandProcessor.LogTo.Console | SkCommandProcessor.LogTo.DebugConsole);
+            hotkeys.Clear();
 
-                    hotkeyList.Clear();
+            BepInEx.Configuration.ConfigEntry<string>[] slots =
+            {
+                SkConfigEntry.CHotkey1,  SkConfigEntry.CHotkey2,  SkConfigEntry.CHotkey3,
+                SkConfigEntry.CHotkey4,  SkConfigEntry.CHotkey5,  SkConfigEntry.CHotkey6,
+                SkConfigEntry.CHotkey7,  SkConfigEntry.CHotkey8,  SkConfigEntry.CHotkey9,
+                SkConfigEntry.CHotkey10, SkConfigEntry.CHotkey11, SkConfigEntry.CHotkey12,
+                SkConfigEntry.CHotkey13, SkConfigEntry.CHotkey14, SkConfigEntry.CHotkey15,
+            };
+
+            for (int i = 0; i < slots.Length; i++)
+            {
+                int slot = i + 1;
+                try
+                {
+                    if (slots[i] == null || string.IsNullOrEmpty(slots[i].Value)) continue;
+                    string raw = slots[i].Value;
+
+                    // Only the FIRST colon separates, so the command itself may contain one.
+                    int sep = raw.IndexOf(':');
+                    if (sep < 0)
+                    {
+                        RejectHotkey(slot, "needs a colon between the key and the command, as in \"l: /fly\".");
+                        continue;
+                    }
+
+                    string keyPart = raw.Substring(0, sep).Trim();
+                    string command = raw.Substring(sep + 1).Trim();
+
+                    if (keyPart.Length != 1)
+                    {
+                        RejectHotkey(slot, keyPart.Length == 0
+                            ? "has no key before the colon."
+                            : "the key must be a single character, not \"" + keyPart + "\".");
+                        continue;
+                    }
+                    char key = keyPart[0];
+                    if (key < ' ' || key > '~')
+                    {
+                        RejectHotkey(slot, "'" + key + "' is not a printable ASCII character.");
+                        continue;
+                    }
+                    if (command.Length == 0)
+                    {
+                        RejectHotkey(slot, "has no command after the colon.");
+                        continue;
+                    }
+                    if (hotkeys.ContainsKey(key))
+                    {
+                        // Dictionary.Add would throw here, and all fifteen slots used to share one try block, so
+                        // a duplicate quietly discarded every hotkey after it.
+                        RejectHotkey(slot, "'" + key + "' is already bound; this slot is ignored.");
+                        continue;
+                    }
+
+                    hotkeys.Add(key, command);
+                }
+                catch (Exception ex)
+                {
+                    RejectHotkey(slot, ex.Message);
                 }
             }
-            catch (Exception Ex)
+
+            if (hotkeys.Count > 0)
             {
-                SkCommandProcessor.PrintOut("Something failed while loading command hotkeys! Check your config file. " + Ex.Message, SkCommandProcessor.LogTo.Console | SkCommandProcessor.LogTo.DebugConsole);
+                SkUtilities.Logz(new string[] { "CONTROLLER", "HOTKEYS" },
+                                 new string[] { hotkeys.Count + " hotkey(s) bound." });
             }
+        }
+
+        private static void RejectHotkey(int slot, string why)
+        {
+            string message = "Hotkey " + slot + " ignored: " + why;
+            SkUtilities.Logz(new string[] { "CONTROLLER", "HOTKEYS" }, new string[] { message }, LogType.Warning);
+            SkCommandProcessor.PrintOut("==> " + message, SkCommandProcessor.LogTo.Console);
         }
 
         private void BuildAliases()
@@ -1252,12 +1271,10 @@ namespace SkToolbox.SkModules
 
                 if (AliasList != null && AliasList.Count > 0)
                 {
-                    ////FIX
-                    if (AliasList.Count > 0)
-                    {
-                        SkCommandProcessor.PrintOut("Apologies, command aliasing was broken by Hearth and Home and is disabled this patch. Fix is in progress.", SkCommandProcessor.LogTo.Console | SkCommandProcessor.LogTo.DebugConsole);
-                        hotkeyList.Clear();
-                    }
+                    // Valheim 1.0: aliasing is live - DecomposeAlias runs on every command - but this said
+                    // otherwise on every startup, and then cleared the HOTKEY dictionary rather than the alias one.
+                    SkUtilities.Logz(new string[] { "CONTROLLER", "ALIASES" },
+                                     new string[] { AliasList.Count + " alias(es) loaded." });
                     //List<string> trashKeys = new List<string>();
                     //foreach (string key in AliasList.Keys)
                     //{
